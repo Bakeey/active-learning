@@ -25,7 +25,7 @@ classdef State
 
         end
         function next_state = next(obj,u1,u2,dt)
-            if nargin == 3
+            if nargin < 3
                 dt = 1E-2;
             end
             [xdot, ydot, thetadot] = obj.dynamics(u1,u2);
@@ -37,12 +37,18 @@ classdef State
         end
         function [xdot, ydot, thetadot] = dynamics(obj,u1,u2)
         %DYNAMICS - Dynamics of a simple two-wheeler.
-        %Inputs: u1 - current lunear velocity, u2 - current angular velocity,
+        %Inputs: 
+        % u1 - current linear velocity, 
+        % u2 - current angular velocity,
         % theta - current heading
         %Returns linear velocities in x and y and angular velocity
             xdot = cos(obj.theta)*u1;
             ydot = sin(obj.theta)*u1;
             thetadot = u2;
+        end
+        function state_vector = to_double(obj)
+        %TO_DOUBLE: Turns object of class State into standard MATLAB format
+            state_vector = [obj.x;obj.y;obj.theta];
         end
     end
 end
