@@ -13,11 +13,19 @@ rng(1);
 
 %% Global Variables
 T   = 2*pi; % seconds
-dt  = 0.05; % seconds
+dt  = 0.025; % seconds
 N   = ceil(T/dt); % number of timesteps simulated
 x_0 = State(0,0,pi/2); % initial condition
-x_d = State(4,0,pi/2); % desired end state
 
+% Desired State Trajectory
+desired_state_vector = cell(1,N);
+desired_state_vector{1} = x_0;
+for idx = 2 : N
+    desired_state_vector{idx} = State(4*(idx-1)/(N-1), 0, pi/2,...
+                                        (idx-1)/(N-1)*T);
+end
+
+% State Trajectory Preallocation
 state_vector = cell(1,N);
 state_vector{1} = x_0;
 for idx = 2 : N
@@ -41,9 +49,14 @@ plot_against_time(state_vector,input_vector,2);
 
 %% Optimize Trajectory
 [optimized_state_trajectory, optimized_input] = optimize_trajectory(...
-                                                             x_0,x_d,T,dt);
+                                            x_0,desired_state_vector,T,dt);
 plot_state_trajectory(optimized_state_trajectory,3);
 plot_against_time(optimized_state_trajectory,optimized_input,4);
+
+%% Plot Post-Processing
+plot_all(desired_state_vector,...
+         state_vector, input_vector,...
+         optimized_state_trajectory, optimized_input,5);
 
 %% Cleanup
 cleanup

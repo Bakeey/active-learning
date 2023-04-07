@@ -1,5 +1,5 @@
 function [state_trajectory,input_trajectory] = ...
-                                     optimize_trajectory(x_0, x_des, T, dt)
+                      optimize_trajectory(x_0, desired_state_vector, T, dt)
 %OPTIMIZER
 % An optimal control problem (OCP),
 % solved with direct multiple-shooting for the lecture
@@ -14,9 +14,15 @@ function [state_trajectory,input_trajectory] = ...
 
     if nargin < 3 % fast debugging
         T  = 2*pi;                      % sec
-        dt = 1E-1;                      % sec
+        dt = 0.025;                      % sec
         if nargin < 2
-            x_des = State(4,0,pi/2);       % desired state
+            % Desired State Trajectory
+            N    = ceil(T/dt);
+            desired_state_vector = cell(1,N);
+            for idx = 1 : N
+                desired_state_vector{idx} = ...
+                          State(4*(idx-1)/(N-1), 0, pi/2, (idx-1)/(N-1)*T);
+            end
             if nargin < 1
                 x_0 = State(0,0,pi/2);    % initial state
             end
@@ -25,13 +31,16 @@ function [state_trajectory,input_trajectory] = ...
 
     % ---- function-wide gobals --------
     N    = ceil(T/dt);
-    Q    = dt*diag([4,2,2]);
-    R    = dt*diag([40,20]);
-    M    = diag([40,40,400]);
+    Q    = dt*diag([1,3,4]);
+    R    = dt*diag([0.01,0.01]);
+    M    = diag([1,3,4]);
     opti = casadi.Opti(); % Optimization problem
 
     % ---- decision variables ---------
-    X_des = x_des.to_double();
+    X_des = zeros(3, N);
+    for idx = 1:N
+        X_des(:,idx) = desired_state_vector{idx}.to_double();
+    end
 
     X = opti.variable(3,N); % state trajectory
     x = X(1,:);
@@ -44,12 +53,12 @@ function [state_trajectory,input_trajectory] = ...
     
     % stage costs l(x_idx,u_idx)
     for idx = 1 : N-1
-        objective = objective + (X(:,idx)-X_des)'*Q*(X(:,idx)-X_des);
+        objective = objective + (X(:,idx)-X_des(:,idx))'*Q*(X(:,idx)-X_des(:,idx));
         objective = objective + (U(:,idx))'*R*(U(:,idx));
     end
   
     % terminal cost m(x_N)
-    objective = objective + (X(:,N)-X_des)'*M*(X(:,N)-X_des);
+    objective = objective + (X(:,N)-X_des(:,N))'*M*(X(:,N)-X_des(:,N));
 
     opti.minimize(objective);
 
@@ -62,10 +71,12 @@ function [state_trajectory,input_trajectory] = ...
     end
 
     % ---- path constraints -----------
-    opti.subject_to(-5<=U<=5);           % limits control arbitrarily
+    % opti.subject_to(-5<=U<=5);           % limits control arbitrarily
+    % opti.subject_to(-5<=U(1,:)<=5);
 
     % ---- boundary and initial conditions --------
     opti.subject_to(X(:,1)    == x_0.to_double());
+    opti.subject_to(X(:,N)    == desired_state_vector{N}.to_double());
 
     % ---- solve NLP              ------
     opti.solver('ipopt'); % set numerical backend
