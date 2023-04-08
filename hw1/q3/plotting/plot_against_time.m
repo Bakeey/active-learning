@@ -15,7 +15,7 @@ function p = plot_against_time(state_trajectory, input_trajectory, fig_idx)
                            input_trajectory(idx)];
     end
 
-    subplot(3,1,1);
+    subplot(2,1,1);
     hold on
     plot(plotting(3,:),plotting(1,:))
     plot(plotting(3,:),plotting(2,:))
@@ -23,14 +23,7 @@ function p = plot_against_time(state_trajectory, input_trajectory, fig_idx)
     xlabel('time [s]','Interpreter','latex')
     hold off
     
-    subplot(3,1,2);
-    hold on
-    plot(plotting(3,:),plotting(4,:))
-    ylabel('Heading $\theta$ [Rad]','Interpreter','latex')
-    xlabel('Time t[s]','Interpreter','latex')
-    hold off
-    
-    subplot(3,1,3);
+    subplot(2,1,2);
     hold on
     stairs(1:N,input_trajectory(1,:),'k');
     legend('$U_1$','$U_2$','Location','northwest','Interpreter','latex')

@@ -23,7 +23,7 @@ function [state_trajectory,input_trajectory] = ...
                 desired_state_vector{idx} = State(0, 0, (idx-1)/(N-1)*T);
             end
             if nargin < 1
-                x_0 = State(10,0);    % initial state
+                x_0 = [];    % initial state
             end
         end
     end
