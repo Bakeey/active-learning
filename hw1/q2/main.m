@@ -19,8 +19,7 @@ x_0 = State(10,0); % initial condition
 
 % Desired State Trajectory (is just a nullvector for Q2)
 desired_state_vector = cell(1,N);
-desired_state_vector{1} = x_0;
-for idx = 2 : N
+for idx = 1 : N
     desired_state_vector{idx} = State(0, 0, (idx-1)/(N-1)*T);
 end
 
@@ -37,10 +36,12 @@ end
 plot_state_trajectory(optimized_state_trajectory,3);
 plot_against_time(optimized_state_trajectory,optimized_input,4);
 
-%% Plot Post-Processing
-plot_all(desired_state_vector,...
-         state_vector, input_vector,...
-         optimized_state_trajectory, optimized_input,5);
+save('q2.mat',"optimized_state_trajectory","optimized_input")
+
+% %% Plot Post-Processing
+% plot_all(desired_state_vector,...
+%          state_vector, input_vector,...
+%          optimized_state_trajectory, optimized_input,5);
 
 %% Cleanup
 cleanup

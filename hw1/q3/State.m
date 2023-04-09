@@ -33,8 +33,8 @@ classdef State
 
             x_dot = (obj.dynamics(u, Y_1) + 2*obj.dynamics(u, Y_2) + ...
                 2*obj.dynamics(u, Y_3) + obj.dynamics(u, Y_4))/6; % RK-4
-
             % x_dot = obj.dynamics(u, obj.to_double()); % Euler
+
             x_next = [obj.x; obj.y] + dt*x_dot;
             time_next = obj.time + dt;
             next_state = State(x_next(1,:), x_next(2,:), time_next);

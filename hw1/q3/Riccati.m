@@ -24,8 +24,10 @@ classdef Riccati
             Y_3 = obj.Phi + dt/2 * obj.dynamics(Y_2);
             Y_4 = obj.Phi + dt * obj.dynamics(Y_3);
 
-            % Phi_dot = (obj.dynamics(Y_1)+2*obj.dynamics(Y_2)+2*obj.dynamics(Y_3)+obj.dynamics(Y_4))/6;
-            Phi_dot = obj.dynamics(obj.Phi); 
+            %Phi_dot = (obj.dynamics(Y_1) + 2*obj.dynamics(Y_2) + ...
+            %    2*obj.dynamics(Y_3) + obj.dynamics(Y_4))/6; % RK-4
+            Phi_dot = obj.dynamics(obj.Phi); % Euler
+
             phi_prev = obj.Phi + dt*Phi_dot;
             time_prev = obj.time + dt;
             previous_state = Riccati(phi_prev, time_prev);
