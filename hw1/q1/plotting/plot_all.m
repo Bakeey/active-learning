@@ -37,39 +37,45 @@ function p = plot_all...
                                    optimal_input_trajectory(2,idx)];
     end
     
-    subplot(4,1,1); hold on;
+    subplot(2,1,1); hold on;
     plot(reference_plotting(1,:),reference_plotting(2,:),'k--');
-    plot(initial_plotting(1,:),initial_plotting(2,:),'k-.');
+    plot(initial_plotting(1,:),initial_plotting(2,:),'k:');
     plot(optimal_plotting(1,:),optimal_plotting(2,:),'k-');
+    legend('Reference Trajectory','Initial Trajectory','Optimized Trajectory','Location','northeast','Interpreter','latex')
+    xlim([0 4.1])
+    ylim([-.5 2.1])
     ylabel('$y$','Interpreter','latex');
     xlabel('$x$','Interpreter','latex'); hold off;
 
-    subplot(4,1,2); hold on;
+    subplot(2,1,2); hold on;
     plot(reference_plotting(4,:),reference_plotting(3,:),'k--');
     plot(initial_plotting(4,:),initial_plotting(3,:),'k:');
     plot(optimal_plotting(4,:),optimal_plotting(3,:),'k-');
+    legend('Reference Trajectory','Initial Trajectory','Optimized Trajectory','Location','southeast','Interpreter','latex')
+    xlim([0 2*pi])
+    ylim([0 2])
     ylabel('Heading $\theta$ [Rad]','Interpreter','latex');
     xlabel('Time t[s]','Interpreter','latex'); hold off;
 
-    subplot(4,1,3);
-    hold on
-    plot(optimal_plotting(4,:),optimal_plotting(1,:),'k-');
-    plot(optimal_plotting(4,:),optimal_plotting(2,:),'r-');
-    plot(initial_plotting(4,:),initial_plotting(1,:),'k:');
-    plot(initial_plotting(4,:),initial_plotting(2,:),'r:');
-    legend('x','y','Location','northwest','Interpreter','latex')
-    xlabel('time [s]','Interpreter','latex')
-    hold off
-    
-    subplot(4,1,4);
-    hold on
-    stairs(1:N,optimal_plotting(5,:),'k-');
-    stairs(1:N,optimal_plotting(6,:),'r-');
-    stairs(1:N,initial_plotting(5,:),'k:');
-    stairs(1:N,initial_plotting(6,:),'r:');
-    legend('$U_1$','$U_2$','Location','northwest','Interpreter','latex')
-    xlabel('time [s]','Interpreter','latex')
-    hold off
+%     subplot(4,1,3);
+%     hold on
+%     plot(optimal_plotting(4,:),optimal_plotting(1,:),'k-');
+%     plot(optimal_plotting(4,:),optimal_plotting(2,:),'r-');
+%     plot(initial_plotting(4,:),initial_plotting(1,:),'k:');
+%     plot(initial_plotting(4,:),initial_plotting(2,:),'r:');
+%     legend('x','y','Location','northwest','Interpreter','latex')
+%     xlabel('time [s]','Interpreter','latex')
+%     hold off
+%     
+%     subplot(4,1,4);
+%     hold on
+%     stairs(1:N,optimal_plotting(5,:),'k-');
+%     stairs(1:N,optimal_plotting(6,:),'r-');
+%     stairs(1:N,initial_plotting(5,:),'k:');
+%     stairs(1:N,initial_plotting(6,:),'r:');
+%     legend('$U_1$','$U_2$','Location','northwest','Interpreter','latex')
+%     xlabel('time [s]','Interpreter','latex')
+%     hold off
 
 end
 

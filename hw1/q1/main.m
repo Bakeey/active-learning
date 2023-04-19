@@ -13,7 +13,7 @@ rng(1);
 
 %% Global Variables
 T   = 2*pi; % seconds
-dt  = 0.025; % seconds
+dt  = 0.01; % seconds
 N   = ceil(T/dt); % number of timesteps simulated
 x_0 = State(0,0,pi/2); % initial condition
 
@@ -44,13 +44,13 @@ for idx = 2 : N
 end
 
 %  plot resulting trajectory
-plot_state_trajectory(state_vector,1);
-plot_against_time(state_vector,input_vector,2);
+% plot_state_trajectory(state_vector,1);
+% plot_against_time(state_vector,input_vector,2);
 
 %% Optimize Trajectory
 [optimized_state_trajectory, optimized_input] = optimize_trajectory(...
                                             x_0,desired_state_vector,T,dt);
-plot_state_trajectory(optimized_state_trajectory,3);
+% plot_state_trajectory(optimized_state_trajectory,3);
 plot_against_time(optimized_state_trajectory,optimized_input,4);
 
 %% Plot Post-Processing

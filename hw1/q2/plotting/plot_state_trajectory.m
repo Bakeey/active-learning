@@ -13,15 +13,15 @@ function p = plot_state_trajectory(state_trajectory, fig_idx)
                            state_trajectory{idx}.time];
     end
     
-    subplot(2,1,1);
+    subplot(1,1,1);
     plot(plotting(1,:),plotting(2,:));
     ylabel('$y$','Interpreter','latex');
     xlabel('$x$','Interpreter','latex');
 
-    subplot(2,1,2); 
-    plot(plotting(3,:),plotting(3,:));
-    ylabel('Heading $\theta$ [Rad]','Interpreter','latex')
-    xlabel('Time t[s]','Interpreter','latex')
+%     subplot(2,1,2); 
+%     plot(plotting(3,:),plotting(3,:));
+%     ylabel('Heading $\theta$ [Rad]','Interpreter','latex')
+%     xlabel('Time t[s]','Interpreter','latex')
 
     hold off;
 

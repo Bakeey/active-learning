@@ -13,8 +13,8 @@ function [state_trajectory,input_trajectory] = ...
 % For download here: https://web.casadi.org/get/
 
     if nargin < 3 % fast debugging
-        T  = 10;                      % sec
-        dt = T/1000;                      % sec
+        T  = 10; % sec
+        dt = T/1000; % sec
         if nargin < 2
             % Desired State Trajectory
             N    = ceil(T/dt)+1;

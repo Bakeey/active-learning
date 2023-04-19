@@ -57,7 +57,7 @@ function p = plot_all...
     plot(optimal_plotting(4,:),optimal_plotting(2,:),'r-');
     plot(initial_plotting(4,:),initial_plotting(1,:),'k:');
     plot(initial_plotting(4,:),initial_plotting(2,:),'r:');
-    legend('x','y','Location','northwest','Interpreter','latex')
+    legend('$x_1$','$x_2$','Location','northeast','Interpreter','latex')
     xlabel('time [s]','Interpreter','latex')
     hold off
     
@@ -67,7 +67,7 @@ function p = plot_all...
     stairs(1:N,optimal_plotting(6,:),'r-');
     stairs(1:N,initial_plotting(5,:),'k:');
     stairs(1:N,initial_plotting(6,:),'r:');
-    legend('$U_1$','$U_2$','Location','northwest','Interpreter','latex')
+    legend('$u_1$','$u_2$','Location','northwest','Interpreter','latex')
     xlabel('time [s]','Interpreter','latex')
     hold off
 

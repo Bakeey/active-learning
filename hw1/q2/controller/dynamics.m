@@ -7,8 +7,3 @@ function [state_derivative] = dynamics(X,u)
         B = [0; 1];
         state_derivative = A*X + B*u;
     end
-
-    function state_vector = to_double(obj)
-    %TO_DOUBLE: Turns object of class State into standard MATLAB format
-        state_vector = [obj.x;obj.y];
-    end

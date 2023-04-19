@@ -22,7 +22,6 @@ x_0 = State(10,0);
 riccati_vector = cell(1,N);
 riccati_vector{N} = Riccati(Phi_end,T);
 for idx = (N-1) : -1 : 1
-    disp(idx)
     riccati_vector{idx} = riccati_vector{idx+1}.previous(-dt);
 end
 
@@ -61,9 +60,7 @@ for idx = 1:N
         state_vector{idx}.time);
 end
         
-    
-plot_state_trajectory(difference_state,5);
-plot_against_time(difference_state,difference_input,6);
+plot_difference_against_time(difference_state,difference_input,6);
 
 
 % %% Plot Post-Processing
@@ -72,4 +69,4 @@ plot_against_time(difference_state,difference_input,6);
 %          optimized_state_trajectory, optimized_input,5);
 
 %% Cleanup
-cleanup
+% cleanup
