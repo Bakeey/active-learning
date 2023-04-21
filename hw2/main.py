@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -12,8 +13,8 @@ class Params:
     theta_0: float = np.pi/2
     u_0 = np.array([1, -.5])
 
-    Q = np.diag([1,3,4])
-    R = np.diag([0.01, 0.01])
+    Q = np.diag([1,1,1]) # np.diag([1,3,4])
+    R = np.diag([1,1]) # np.diag([0.01, 0.01])
     M = np.diag([0,0,0]) # no terminal cost
 
     alpha: float = 0.5
@@ -26,6 +27,7 @@ class State:
     def __init__(self, xytheta, t: float = 0):
         if isinstance(xytheta, np.ndarray):
             assert xytheta.size == 3 , f"State has wrong size, expected 3, got: {xytheta.size}"
+            xytheta = xytheta.reshape(3)
             self.x = xytheta[0]
             self.y = xytheta[1]
             self.theta = xytheta[2]
@@ -67,6 +69,54 @@ class StatePertubation(State):
         B = np.array([np.cos(self.theta), 0, np.sin(self.theta), 0, 0, 1]).reshape(3,2) # D_2f
         x_dot = np.dot(A, self()) + np.dot(B, v)
         return x_dot
+    
+    def next(self, v: np.ndarray, dt: float = Params.dt):
+        """Computes next state from current state with given input U using Euler integration"""
+        assert v.size == 2 , f"Input U has wrong size, expected 2, got: {v.size}"
+        next_state: np.ndarray = self() + dt * self.dynamics(v)
+        return StatePertubation(next_state, self.t + dt)
+    
+
+def plot(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray) -> None:
+    time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
+    x = [state.x for state in state_trajectory]
+    y = [state.y for state in state_trajectory]
+    theta = [state.theta for state in state_trajectory]
+
+    
+    fig, axs = plt.subplots(3)
+    # fig.suptitle('Vertically stacked subplots')
+    axs[0].plot(x,y)
+    axs[1].plot(time, theta)
+    axs[2].plot(time, input_trajectory[:,0])
+    axs[2].plot(time, input_trajectory[:,1])
+    
+    return
+
+def plot_P_r(P: np.ndarray, r: np.ndarray) -> None:
+    P_1_1 = P[:,0,0]
+    P_2_2 = P[:,1,1]
+    P_3_3 = P[:,2,2]
+    P_1_2 = P[:,0,1]
+    P_1_3 = P[:,0,2]
+    P_2_3 = P[:,1,2]
+    t = np.arange(0,P.shape[0])*Params.dt
+    r_1 = r[:,0]
+    r_2 = r[:,1]
+    r_3 = r[:,2]
+
+    fig, axs = plt.subplots(2)
+    axs[0].plot(t,P_1_1)
+    axs[0].plot(t,P_1_2)
+    axs[0].plot(t,P_1_3)
+    axs[0].plot(t,P_2_2)
+    axs[0].plot(t,P_2_3)
+    axs[0].plot(t,P_3_3)
+    axs[1].plot(t,r_1)
+    axs[1].plot(t,r_2)
+    axs[1].plot(t,r_3)
+    
+    return
 
 
 def J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray) -> float:
@@ -108,7 +158,7 @@ def Directional_J(state_trajectory: np.ndarray[State], input_trajectory: np.ndar
         cost += dt * np.dot(v_curr,np.dot(R, u_curr))
         
     x_curr = state_trajectory[-1]()
-    z_curr = state_pertubation[ii]()
+    z_curr = state_pertubation[-1]()
     cost += np.dot(z_curr,np.dot(M, x_curr))
     return cost
 
@@ -144,8 +194,8 @@ def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.
     N = len(state_trajectory)
     P = np.zeros((N,3,3))
     r = np.zeros((N,3,1))
-    A = np.empty((N,3,3))
-    B = np.empty((N,3,2))
+    A = np.zeros((N,3,3))
+    B = np.zeros((N,3,2))
 
     # load A,B
     for ii in range(N):
@@ -155,7 +205,7 @@ def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.
     # iterate through P
     for ii in range(N-1,0,-1):
         x_curr = state_trajectory[ii]
-        u_curr = input_trajectory[ii] # TODO make input trajectory same length as state trajectory so P(T) matches!!! [ii]
+        u_curr = input_trajectory[ii]
         minus_Pdot = P[ii].dot(A[ii]) + np.transpose(A[ii]).dot(P[ii]) - \
                      P[ii].dot(B[ii]).dot(R_inv).dot(np.transpose(B[ii]).dot(P[ii])) + Q
         minus_rdot = np.transpose( A[ii] - B[ii].dot(R_inv).dot(np.transpose(B[ii]).dot(P[ii])) ).dot(r[ii]) +\
@@ -163,20 +213,35 @@ def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.
         P[ii-1] = P[ii] + dt * minus_Pdot
         r[ii-1] = r[ii] + dt * minus_rdot
 
+    z_0 = -np.linalg.inv(P[0]).dot(r[0])
+    state_pertubation = np.zeros_like(state_trajectory, dtype=StatePertubation)
+    input_pertubation = np.zeros_like(input_trajectory)
+    state_pertubation[0] = StatePertubation(z_0, t=0)
+
+    for jj in range(N-1):
+        input_pertubation[jj] -= (R_inv.dot(np.transpose(B[jj])).dot(P[jj]).dot(state_pertubation[jj]())).reshape(2)
+        input_pertubation[jj] -= (R_inv.dot(np.transpose(B[jj])).dot(r[jj]) + R_inv.dot(D2_l(input_trajectory[jj]))).reshape(2)
+        z_next = state_pertubation[jj]() + dt * (A[jj].dot(state_pertubation[jj]())).reshape(3) + B[jj].dot(input_pertubation[jj])
+        state_pertubation[jj+1] = StatePertubation(z_next, (jj+1)*dt)
+    
+    input_pertubation[-1] -= (R_inv.dot(np.transpose(B[-1])).dot(P[-1]).dot(state_pertubation[-1]())).reshape(2)
+    input_pertubation[-1] -= (R_inv.dot(np.transpose(B[-1])).dot(r[-1]) + R_inv.dot(D2_l(input_trajectory[-1]))).reshape(2)
+
     # initialize z[0] = 0 and use class StatePertubation
-    state_pertubation: np.ndarray[StatePertubation] = np.empty(N, dtype=StatePertubation)
-    input_pertubation: np.ndarray = np.empty_like(input_trajectory)
-    state_pertubation[0] = StatePertubation((0, 0, 0), t=0)
-
-    for ii in range(N-1):
-        input_pertubation[ii] = -R_inv.dot(np.transpose(B[ii]).dot(P[ii])).dot(state_pertubation[ii]()) -\
-                                 R_inv.dot(np.transpose(B[ii]).dot(r[ii])).reshape(2) -\
-                                 R_inv.dot(D2_l(input_trajectory[ii])).reshape(2)
-        state_pertubation[ii+1] = state_pertubation[ii].next(input_pertubation[ii], dt)
-
-    input_pertubation[-1] = -R_inv.dot(np.transpose(B[-1]).dot(P[-1])).dot(state_pertubation[-1]()) -\
-                             R_inv.dot(np.transpose(B[-1]).dot(r[-1])).reshape(2) -\
-                             R_inv.dot(D2_l(input_trajectory[-1])).reshape(2)
+    # state_pertubation: np.ndarray[StatePertubation] = np.empty(N, dtype=StatePertubation)
+    # input_pertubation: np.ndarray = np.zeros_like(input_trajectory)
+    # z_0 = - np.linalg.inv(P[0]).dot(r[0]).reshape(3)
+    # state_pertubation[0] = StatePertubation(z_0, t=0)
+# 
+    # for ii in range(N-1):
+    #     input_pertubation[ii] = -R_inv.dot(np.transpose(B[ii]).dot(P[ii])).dot(state_pertubation[ii]()) -\
+    #                              R_inv.dot(np.transpose(B[ii]).dot(r[ii])).reshape(2) -\
+    #                              R_inv.dot(D2_l(input_trajectory[ii])).reshape(2)
+    #     state_pertubation[ii+1] = state_pertubation[ii].next(input_pertubation[ii], dt)
+# 
+    # input_pertubation[-1] = -R_inv.dot(np.transpose(B[-1]).dot(P[-1])).dot(state_pertubation[-1]()) -\
+    #                          R_inv.dot(np.transpose(B[-1]).dot(r[-1])).reshape(2) -\
+    #                          R_inv.dot(D2_l(input_trajectory[-1])).reshape(2)
 
     return (state_pertubation, input_pertubation)
 
@@ -208,34 +273,44 @@ def main() -> int:
 
     counter: int = 0
     while True:
-        if counter > 0 and Directional_J(current_state_trajectory, current_input_trajectory, \
-                                         current_state_pertubation, current_input_pertubation) <= eps:
+        if counter > 0 and abs(Directional_J(current_state_trajectory, current_input_trajectory, \
+                                         current_state_pertubation, current_input_pertubation)) <= eps:
             break
         if counter > max_iterations:
             return 0 # no solution found
         
-        current_state_pertubation, current_input_pertubation = descent_direction(initial_trajectory, U_0)
+        current_state_pertubation, current_input_pertubation = descent_direction(current_state_trajectory, current_input_trajectory)
 
         n: int = 0
         gamma: float = beta
         while True:
-            if n > 0 and np.inf <= J(current_state_trajectory, current_input_trajectory) +\
-                        alpha * gamma * Directional_J(current_state_trajectory, current_input_trajectory,\
+            new_input_trajectory = current_input_trajectory + gamma * current_input_pertubation
+            new_state_trajectory: np.ndarray[State] = np.empty(N, dtype=State)
+            new_state_trajectory[0] = X_0
+            for ii in range(N-1):
+                new_state_trajectory[ii+1] = new_state_trajectory[ii].next(new_input_trajectory[ii], dt)
+
+            if n > 0 and J(new_state_trajectory, new_input_trajectory) <=\
+                         J(current_state_trajectory, current_input_trajectory) +\
+                          alpha * gamma * Directional_J(current_state_trajectory, current_input_trajectory,\
                                                       current_state_pertubation, current_input_pertubation):
-                break # TODO NP.INF in CONDITION
+                break
             if n > max_iterations:
                 return -1 # failed to converge
             
-            new_input_trajectory = current_input_trajectory + gamma * current_input_pertubation
-            new_state_trajectory = X_0 + # HUH?
+            
+            # new_state_trajectory = X_0 + # HUH?
             n += 1
             gamma = beta**n
+            print("    Current n:     ", n)
+            print("    Current gamma: ", gamma)
             # end Armijo search
 
+        current_input_trajectory = new_input_trajectory
         current_state_trajectory = new_state_trajectory
-        current_input_trajectory = new_input_trajectory  
 
         counter += 1
+        print("Current counter: ", counter)
         # end main while loop
 
     return 1
