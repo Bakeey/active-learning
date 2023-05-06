@@ -131,23 +131,28 @@ def plot_current(state_trajectory: np.ndarray[State]) -> None:
     
     return
 
-def plot_kalman(state_trajectory: np.ndarray[State], kalman_trajectory: np.ndarray[State]) -> None:
+def plot_kalman(state_trajectory: np.ndarray[State], 
+                measurements: np.ndarray, 
+                kalman_trajectory: np.ndarray[State]) -> None:
     time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
     x = [state.x for state in state_trajectory]
     y = [state.y for state in state_trajectory]
     x_k = [state.x for state in kalman_trajectory]
     y_k = [state.y for state in kalman_trajectory]
+    x_m = measurements[:,0]
+    y_m = measurements[:,1]
     fig, axs = plt.subplots(2)
     # fig.suptitle('Vertically stacked subplots')
     axs[0].plot(x,y,'k--', label=r'actual system trajectory')
     axs[0].plot(x_k,y_k,'k', label=r'kalman filter')
+    axs[0].scatter(x_m,y_m, label='measurements')
     axs[0].set_ylabel('$y$')
     axs[0].set_xlabel('$x$')
     axs[0].legend(loc="lower left") 
-    axs[1].plot(time,x, 'k--', label=r'$x$')
-    axs[1].plot(time,y, 'r--', label=r'$y$')
-    axs[1].plot(time,x_k, 'k')
-    axs[1].plot(time,y_k, 'r')
+    axs[1].plot(time,x, 'k--', label=r'$x$ (actual system trajectory)')
+    axs[1].plot(time,x_k, 'k', label=r'$x$ (kalman filter)')
+    axs[1].plot(time,y, 'r--', label=r'$y$ (actual system trajectory)')
+    axs[1].plot(time,y_k, 'r', label=r'$y$ (kalman filter)')
     axs[1].set_xlabel('time $t$ [sec]')
     axs[1].set_ylabel('state magnitude')
     axs[1].legend(loc="lower left")    
