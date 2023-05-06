@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from state import State, StatePertubation
+from state import State
 
 import matplotlib
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
@@ -113,43 +113,44 @@ def plot(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, init
     
     return
 
-def plot_current(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray) -> None:
+def plot_current(state_trajectory: np.ndarray[State]) -> None:
     time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
     x = [state.x for state in state_trajectory]
     y = [state.y for state in state_trajectory]
-    theta = [state.theta for state in state_trajectory]
-
-    fig, axs = plt.subplots(3)
+    fig, axs = plt.subplots(2)
     # fig.suptitle('Vertically stacked subplots')
     axs[0].plot(x,y)
     axs[0].set_ylabel('$y$')
     axs[0].set_xlabel('$x$')
-    axs[1].plot(time, theta)
-    axs[1].set_ylabel(r'$\theta$ [rad]')
+    axs[1].plot(time,x, 'k', label=r'$x$')
+    axs[1].plot(time,y, 'r', label=r'$y$')
     axs[1].set_xlabel('time $t$ [sec]')
-    axs[2].plot(time, input_trajectory[:,0])
-    axs[2].plot(time, input_trajectory[:,1])
-    axs[2].set_ylabel('input magnitude')
-    axs[2].set_xlabel('time $t$ [sec]')
-
+    axs[1].set_ylabel('state magnitude')
+    axs[1].legend(loc="lower left")    
     plt.show()
     
     return
 
-def plot_noise(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, noisy_trajectory) -> None:
+def plot_kalman(state_trajectory: np.ndarray[State], kalman_trajectory: np.ndarray[State]) -> None:
     time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
     x = [state.x for state in state_trajectory]
     y = [state.y for state in state_trajectory]
-    theta = [state.theta for state in state_trajectory]
-
-    plt.plot(x,y)
-    plt.ylabel('$y$')
-    plt.xlabel('$x$')
-    
-    for idx in range(1,len(time),10):
-        plt.plot(noisy_trajectory[idx,:,0],noisy_trajectory[idx,:,1],'.')
-
-
+    x_k = [state.x for state in kalman_trajectory]
+    y_k = [state.y for state in kalman_trajectory]
+    fig, axs = plt.subplots(2)
+    # fig.suptitle('Vertically stacked subplots')
+    axs[0].plot(x,y,'k--', label=r'actual system trajectory')
+    axs[0].plot(x_k,y_k,'k', label=r'kalman filter')
+    axs[0].set_ylabel('$y$')
+    axs[0].set_xlabel('$x$')
+    axs[0].legend(loc="lower left") 
+    axs[1].plot(time,x, 'k--', label=r'$x$')
+    axs[1].plot(time,y, 'r--', label=r'$y$')
+    axs[1].plot(time,x_k, 'k')
+    axs[1].plot(time,y_k, 'r')
+    axs[1].set_xlabel('time $t$ [sec]')
+    axs[1].set_ylabel('state magnitude')
+    axs[1].legend(loc="lower left")    
     plt.show()
     
     return

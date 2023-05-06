@@ -13,7 +13,7 @@ class Params:
     theta_0: float = np.pi/2
     u_0 = np.array([1, -.5])
 
-    n_particles: int = 50
+    n_particles: int = 200
     cov = 0.02
 
 
