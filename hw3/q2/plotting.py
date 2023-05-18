@@ -159,3 +159,25 @@ def plot_kalman(state_trajectory: np.ndarray[State],
     plt.show()
     
     return
+
+def plot_optimality():
+    K_gain = [0.8,  0.84, 0.88, 0.92, 0.96, 1.,   1.04, 1.08, 1.12, 1.16, 1.2 ]
+    mean_error = [0.15626832, 0.15434268, 0.153419  , 0.1520322 , 0.15366641, 0.15154664, 0.15273871, 0.15204482 , 0.15206308, 0.1536205, 0.1588911 ]
+    mean_variance = [0.0069597 , 0.00661742, 0.00679898, 0.00683991, 0.00703347, 0.0064404, 0.0072643 , 0.00697951, 0.00663712, 0.00683126, 0.00699933]
+    mean_std = [np.sqrt(var) for var in mean_variance]
+
+    fig, ax = plt.subplots()
+    ax.bar(K_gain, mean_error, align='center', ecolor='black', width=0.03)
+    ax.set_ylabel('mean error')
+    ax.set_xticks(K_gain)
+    ax.set_xticklabels(K_gain)
+    ax.set_ylim(0.15,0.16)
+    ax.yaxis.grid(True)
+
+    # Save the figure and show
+    plt.tight_layout()
+    plt.show()
+    return 0
+
+if __name__ == "__main__":
+    exit(plot_optimality())

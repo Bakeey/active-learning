@@ -142,18 +142,28 @@ def plot_noise(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray
     y = [state.y for state in state_trajectory]
     theta = [state.theta for state in state_trajectory]
 
-    plt.plot(x,y)
-    plt.ylabel('$y$')
-    plt.xlabel('$x$')
-    
+    # plt.plot(x,y)
+    fig, axs = plt.subplots(2)
+
+    # Save the figure and show
+
+
+    axs[0].set_ylabel('$y$')
+    axs[0].set_xlabel('$x$')
+    axs[1].set_ylabel(f"$θ$ [rad]")
+    axs[1].set_xlabel('$t$ (sec)')
+
     for idx in range(10,len(time)+1,10):
-        plt.plot(noisy_trajectory[idx,:,0],noisy_trajectory[idx,:,1],'.')
-    plt.plot( [np.mean(noisy_trajectory[idx,:,0]) for idx in range(len(time))], [np.mean(noisy_trajectory[idx,:,1]) for idx in range(len(time))])
+        axs[0].plot(noisy_trajectory[idx,:,0],noisy_trajectory[idx,:,1],'.')
+        axs[1].plot(idx*0.1*np.ones(noisy_trajectory.shape[1]),noisy_trajectory[idx,:,2],'.')
+    axs[0].plot( [np.mean(noisy_trajectory[idx,:,0]) for idx in range(len(time))], [np.mean(noisy_trajectory[idx,:,1]) for idx in range(len(time))], 'k', linewidth=2)
+    axs[1].plot( time, [np.mean(noisy_trajectory[idx,:,2]) for idx in range(len(time))], 'k', linewidth=2)
+
+    axs[0].set_aspect('equal', adjustable="datalim")
+    plt.tight_layout()
     plt.show()
 
     plt.plot( [noisy_mean[idx,0] for idx in range(len(time))], [noisy_mean[idx,1] for idx in range(len(time))])
-
-
     plt.show()
     
     return

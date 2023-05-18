@@ -46,14 +46,8 @@ def main() -> int:
         weight_sample[idx] = weight_sample[idx] / np.sum(weight_sample[idx])
         noisy_mean[idx] = weight_sample[idx].dot(noisy_trajectory[idx])
 
-
-            
-
-
-
     plot_noise(state_trajectory, input_trajectory, noisy_trajectory, noisy_mean)
-    return 1
+    return 0
 
 if __name__ == "__main__":
-    success = main()
-    print("terminated with exit code: ", success)
+    exit(main())
