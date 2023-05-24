@@ -17,7 +17,6 @@ class Infotaxis:
 
         fig, ax = plt.subplots(figsize=(9, 6))        
         sns.heatmap(self.grid, annot = False, cmap='Greens', linewidths=.5, linecolor = 'white')
-        plt.plot(np.array([1,10])+0.5,np.array([1,10])+0.5)
         fig.show()
 
         # initialize own position
@@ -54,7 +53,7 @@ class Infotaxis:
 
     def done(self): 
         # Returns if we have found the door yet
-        return len(self.memory) > 1000 # self.position == self.source
+        return self.position == self.source or len(self.memory) > 700
     
     def get_position(self):
         return self.position
@@ -103,8 +102,8 @@ class Infotaxis:
             posterior = posterior / np.sum(posterior)
             entropy_posterior = -np.log(posterior)
             entropy_posterior[entropy_posterior == np.inf] = 0
-            _entropy = entropy_posterior[position]
-            return self.entropy_posterior[position] - _entropy # Entropy over all points or only at next point??
+            _entropy = np.sum(entropy_posterior)
+            return np.sum(self.entropy_posterior) - _entropy # TODO Entropy over all points or only at next point??
 
     def choose_action(self):
         # self.prior = self.posterior
@@ -126,18 +125,15 @@ class Infotaxis:
         self.memory.append(self.position)
 
     def plot(self):
-        plt.figure()
-        sns.heatmap(self.grid)
-        plt.show()
+        # plt.figure()
+        # sns.heatmap(self.grid)
+        # plt.show()
         plt.figure()
         sns.heatmap(self.posterior)
-        memory = [(mem[1], mem[0]) for mem in self.memory]
-        plt.plot(*zip(*memory))
+        memory = [(mem[1]+.5, mem[0]+.5) for mem in self.memory]
+        plt.plot(*zip(*memory), 'b')
         plt.show()
         return
-
-        
-        
 
 def main():
     agent = Infotaxis()
