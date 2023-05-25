@@ -15,6 +15,7 @@ class Infotaxis:
             self.grid[self.source[0] + idx*2, (self.source[1]-2):(self.source[1]+3)] = 1/3.0
             self.grid[self.source[0] + idx*3, (self.source[1]-3):(self.source[1]+4)] = 1/4.0
 
+        # plot ground truth
         fig, ax = plt.subplots(figsize=(9, 6))        
         sns.heatmap(self.grid, annot = False, cmap='Greens', linewidths=.5, linecolor = 'white')
         fig.show()
@@ -30,6 +31,7 @@ class Infotaxis:
 
         # initialize useful variables
         self.prior = np.ones((size,size), dtype=float) / size**2 # prior for door l'hood
+        self.likelihood = self.prior.copy()
         self.p_r0 = self.prior # door l'hood posterior
         self.entropy = np.ones_like(self.prior) * np.log(size**2) # prior for entropy
 
@@ -45,15 +47,9 @@ class Infotaxis:
             3: np.array([0, -1]),   # down
         }
 
-        # posterior
-
-
-
-        # various likelihoods
-
     def done(self): 
         # Returns if we have found the door yet
-        return self.position == self.source or len(self.memory) > 700
+        return self.source in self.memory[:-1] or len(self.memory) > 5000
     
     def get_position(self):
         return self.position
@@ -86,7 +82,7 @@ class Infotaxis:
         likelihood = np.ones_like(self.grid) * (1/100 if measured_z else 99/100)
         for idx in [-1,1]:
             likelihood[position] = 1 if measured_z else 0
-            try: # TODO: clipping if position is out of bounds???
+            try: # TODO: clipping if position is out of bounds?
                 likelihood[position[0] + idx*1, (position[1]-1):(position[1]+2)] = 1/2.0
                 likelihood[position[0] + idx*2, (position[1]-2):(position[1]+3)] = 1/3.0 if measured_z else 2/3.0
                 likelihood[position[0] + idx*3, (position[1]-3):(position[1]+4)] = 1/4.0 if measured_z else 3/4.0
@@ -94,30 +90,32 @@ class Infotaxis:
                 pass
         posterior = self.prior * likelihood
         if not hypothetical:
+            self.likelihood = likelihood
             self.posterior = posterior / np.sum(posterior)
+            self.posterior[self.posterior < 1e-8] = 1e-8 # avoid infinite entropy
             self.entropy_posterior = -np.log(self.posterior)
-            self.entropy_posterior[self.entropy_posterior == np.inf] = 0
             self.prior = self.posterior
         else:
             posterior = posterior / np.sum(posterior)
+            posterior[posterior < 1e-8] = 1e-8 # mathematicians hate this trick
             entropy_posterior = -np.log(posterior)
-            entropy_posterior[entropy_posterior == np.inf] = 0
-            _entropy = np.sum(entropy_posterior)
-            return np.sum(self.entropy_posterior) - _entropy # TODO Entropy over all points or only at next point??
+            _entropy = entropy_posterior[position]
+            return self.entropy_posterior[position] - _entropy
 
     def choose_action(self):
-        # self.prior = self.posterior
+        """chooses the action which gives maximum entropy reduction,
+        respectively minimum entropy increase"""
         available_actions, next_positions = self.get_actions(self.position)
         entropy_reduction = np.zeros(len(next_positions))
 
-        for idx,next_position in enumerate(next_positions): # TODO weights
-            entropy_reduction[idx] =  self.prior[next_position] * \
+        for idx,next_position in enumerate(next_positions):
+            entropy_reduction[idx] =  (1-self.likelihood[next_position]) * \
                 self.posterior_update(measured_z = True, position = next_position, hypothetical=True) +\
-                (1 - self.prior[next_position]) * \
+                (self.likelihood[next_position]) * \
                 self.posterior_update(measured_z = False, position = next_position, hypothetical=True
             )
         
-        return available_actions[np.argmax(entropy_reduction)]
+        return available_actions[np.argmin(entropy_reduction)]
     
     def take_step(self, action):
         current_position = np.array(self.position)
@@ -125,13 +123,13 @@ class Infotaxis:
         self.memory.append(self.position)
 
     def plot(self):
-        # plt.figure()
-        # sns.heatmap(self.grid)
-        # plt.show()
+        plt.figure()
+        sns.heatmap(self.grid)
+        plt.show()
         plt.figure()
         sns.heatmap(self.posterior)
         memory = [(mem[1]+.5, mem[0]+.5) for mem in self.memory]
-        plt.plot(*zip(*memory), 'b')
+        plt.plot(*zip(*(memory[:-1])), 'b')
         plt.show()
         return
 
@@ -147,8 +145,6 @@ def main():
         agent.take_step(action)
 
     agent.plot()
-    print(1)
-        
     return
 
 if __name__=='__main__':

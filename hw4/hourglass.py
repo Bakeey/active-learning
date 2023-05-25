@@ -1,4 +1,5 @@
 import numpy as np
+import seaborn as sns
 
 def populate_hourglass(arr, initial_point):
     rows, cols = arr.shape
@@ -34,3 +35,4 @@ result = populate_hourglass(arr, initial_point)
 
 # Print the resulting ndarray
 print(result)
+sns.heatmap(result)
