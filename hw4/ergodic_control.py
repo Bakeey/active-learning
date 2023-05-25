@@ -2,7 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import matplotlib
 from scipy.integrate import dblquad as integrate
+from cachetools import cached
+
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
@@ -26,7 +29,8 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 class ErgodicControl:
-    def __init__(self, b: float = 0.0, T: float = 100.0, dt: float = 0.1, K: int = 10) -> None:
+    def __init__(self, b: float = 0.0, T: float = 1000.0, dt: float = 0.1, 
+                 K: int = 10, lb: float = -10., ub: float = 10.) -> None:
         self.b = b
         self.T = T
         self.dt = dt
@@ -44,6 +48,9 @@ class ErgodicControl:
         self.Sigma = np.diag([2,2])
         self.Sigma_inv = np.linalg.inv(self.Sigma)
         self.normalizer = ( np.linalg.det( 2*np.pi*self.Sigma ) )**-.5
+
+        self.lb = lb
+        self.ub = ub
 
         return
     
@@ -79,7 +86,7 @@ class ErgodicControl:
     def get_basis_function(self, x: np.ndarray, k: tuple[int,int]):
         F_k = self.normalize_basis_function() # TODO
         for dim in range(x.shape[-1]):
-            F_k *= np.cos( k[dim] * x[dim] * np.pi / 2 ) # TODO (b-a)/(x-a)
+            F_k *= np.cos( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO (b-a)/(x-a)
         return F_k
         
     def get_fourier_coeffs(self):
@@ -93,38 +100,85 @@ class ErgodicControl:
    
         return K, coefficients
         
+    @cached(cache ={})
     def get_spatial_distro_coeffs(self):
+        # TODO speed up computation significantly since this is constant for all trajectories?
         K = self.K
         l = len(K)
         coefficients = [None] * l
         for idx,k in enumerate(K):
             coefficients[idx], _ = integrate(lambda x2,x1:
                 self.normal_dist(np.array([x1,x2])) * self.get_basis_function(np.array([x1,x2]),k),
-                -5, 5, -5, 5)
+                self.lb, self.ub, self.lb, self.ub)
             printProgressBar(idx + 1, l, prefix = '    Progress:', suffix = 'Complete', length = 50)
             
         return K, coefficients
+    
+    def get_lambda_cofficients(self):
+        # TODO speed up computation significantly since this is constant for all trajectories?
+        K = self.K
+        l = len(K)
+        coefficients = [None] * l
+        s = (2+1)/2
+        for idx,k in enumerate(K):
+            k_squared = k[0]**2 + k[-1]**2
+            coefficients[idx] = (1 + k_squared)**(-s)
+            
+        return K, coefficients
+    
+
+def generate_b():
+    result = []
+    
+    # In 0.01 steps from 0 to 1
+    result.extend(np.linspace(0, 0.7, num=101))  # 0.00 to 1.00, inclusive
+    result.extend(np.linspace(0.7, 0.9, num=101))
+    result.extend(np.linspace(0.9, 1.0, num=10))
+    
+    # In 0.1 steps from 1 to 2
+    result.extend(np.linspace(1, 2, num=11))  # 1.0 to 2.0, inclusive
+    
+    # In 0.5 steps from 2 to 10
+    result.extend(np.linspace(2, 10, num=17))  # 2.0 to 10.0, inclusive
+    
+    return result
 
 
 def main():
         
-    b = [0., 0.1, 0.5, 1., 2., 5., 10.]
+    b = generate_b()
+    b = []
+    b.extend(np.linspace(0,1,11))
+    b.extend(np.linspace(1,10,10))
+    # b = [0., 0.1, 0.5, 1., 2., 5., 10.]
     ergodic_metric = [None] * len(b)
     trajectory = [None] * len(b)
+
+    print("Calculating Spatial Distro Coefficients")
+    K, Phi_K = ErgodicControl(b=0).get_spatial_distro_coeffs()
+    _, Lambda_K = ErgodicControl(b=0).get_lambda_cofficients()
 
     for idx, _b in enumerate(b):
         print("Calculating Ergodic Metric for b = ",_b)
         instance = ErgodicControl(b=_b)
         trajectory[idx] = instance.trajectory()
         _, C_K = instance.get_fourier_coeffs()
-        print("    Calculating Spatial Distro Coefficients")
-        K, Phi_K = instance.get_spatial_distro_coeffs()
 
-        ergodic_metric[idx] = sum([ (c-p)**2 for c,p in zip(C_K, Phi_K) ])
+        ergodic_metric[idx] = sum([ l*(c-p)**2 for l,c,p in zip(Lambda_K, C_K, Phi_K) ])
         print("    Ergodic Metric is = ",ergodic_metric[idx])
-        
+
+    plt.plot(b,ergodic_metric,'k')
+    plt.xlabel(r'$b$')
+    plt.ylabel(r'$\varepsilon$')
+    plt.title(r'Ergodic Metric as Function of $b$ and $t=1000$')
+    plt.xlim([0,1])
+    plt.tight_layout()
+    plt.show()
+
 
     return
 
 if __name__=='__main__':
+    matplotlib.rcParams['mathtext.fontset'] = 'stix'
+    matplotlib.rcParams['font.family'] = 'STIXGeneral'
     exit(main())
