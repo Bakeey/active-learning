@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 import matplotlib
+import csv
+
 from scipy.integrate import dblquad as integrate
 from cachetools import cached
 
@@ -51,7 +53,6 @@ class ErgodicControl:
 
         self.lb = lb
         self.ub = ub
-
         return
     
     def dynamics(self, x: np.ndarray):
@@ -129,54 +130,62 @@ class ErgodicControl:
 
 def generate_b():
     result = []
-    
-    # In 0.01 steps from 0 to 1
-    result.extend(np.linspace(0, 0.7, num=101))  # 0.00 to 1.00, inclusive
-    result.extend(np.linspace(0.7, 0.9, num=101))
-    result.extend(np.linspace(0.9, 1.0, num=10))
-    
-    # In 0.1 steps from 1 to 2
-    result.extend(np.linspace(1, 2, num=11))  # 1.0 to 2.0, inclusive
-    
-    # In 0.5 steps from 2 to 10
-    result.extend(np.linspace(2, 10, num=17))  # 2.0 to 10.0, inclusive
-    
+    result.extend(np.linspace(0, 1.0, num=201))  # 0.00 to 1.00, inclusive
     return result
 
 
 def main():
         
     b = generate_b()
-    b = []
-    b.extend(np.linspace(0,1,11))
-    b.extend(np.linspace(1,10,10))
-    # b = [0., 0.1, 0.5, 1., 2., 5., 10.]
-    ergodic_metric = [None] * len(b)
-    trajectory = [None] * len(b)
+    T = [10,20,30,40,50,100,500,1000]
 
-    print("Calculating Spatial Distro Coefficients")
-    K, Phi_K = ErgodicControl(b=0).get_spatial_distro_coeffs()
-    _, Lambda_K = ErgodicControl(b=0).get_lambda_cofficients()
+    ergodic_metric = [None] * len(T)
+    trajectory = [None] * len(T)
 
-    for idx, _b in enumerate(b):
-        print("Calculating Ergodic Metric for b = ",_b)
-        instance = ErgodicControl(b=_b)
-        trajectory[idx] = instance.trajectory()
-        _, C_K = instance.get_fourier_coeffs()
+    for num_T,T_i in enumerate(T):
 
-        ergodic_metric[idx] = sum([ l*(c-p)**2 for l,c,p in zip(Lambda_K, C_K, Phi_K) ])
-        print("    Ergodic Metric is = ",ergodic_metric[idx])
+        ergodic_metric[num_T] = [None] * len(b)
+        trajectory[num_T] = [None] * len(b)
 
-    plt.plot(b,ergodic_metric,'k')
+        print("Calculating Spatial Distro Coefficients")
+        K, Phi_K = ErgodicControl(b=0, T=T_i).get_spatial_distro_coeffs()
+        _, Lambda_K = ErgodicControl(b=0, T=T_i).get_lambda_cofficients()
+
+        for idx, _b in enumerate(b):
+            print("Calculating Ergodic Metric for b = ",_b, " and T = ", T_i)
+            instance = ErgodicControl(b=_b, T=T_i)
+            trajectory[num_T] = instance.trajectory()
+            _, C_K = instance.get_fourier_coeffs()
+
+            ergodic_metric[num_T][idx] = sum([ l*(c-p)**2 for l,c,p in zip(Lambda_K, C_K, Phi_K) ])
+            print("    Ergodic Metric is = ",ergodic_metric[num_T][idx])
+
+    for num_T,T_i in enumerate(T):
+        label = r'$T$ = '+str(T_i)
+        plt.plot(b,ergodic_metric[num_T],label=label)
     plt.xlabel(r'$b$')
     plt.ylabel(r'$\varepsilon$')
-    plt.title(r'Ergodic Metric as Function of $b$ and $t=1000$')
+    plt.title(r'Ergodic Metric as Function of $b$ and $T$')
     plt.xlim([0,1])
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
+    # Store Data
+    data=[]
+    for num_T,T_i in enumerate(T):
+        data.append(ergodic_metric[num_T])
+
+    # Create a CSV file
+    with open("data.csv", "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Time", "Value"])
+        writer.writerow(["b"] + b)
+        for t, values in zip(T, data):
+            writer.writerow([t] + values)
 
     return
+
 
 if __name__=='__main__':
     matplotlib.rcParams['mathtext.fontset'] = 'stix'
