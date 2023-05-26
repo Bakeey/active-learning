@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1685055604 "c:/Users/kleme/Documents/git/active-learning/hw4/tex/main.tex" "main.pdf" "main" 1685055606 0
-  "Q1.tex" 1685055180 659 a086ecb05372ca25bc1c0222345ce355 ""
+["pdflatex"] 1685060436 "c:/Users/kleme/Documents/git/active-learning/hw4/tex/main.tex" "main.pdf" "main" 1685060437 0
+  "Q1.tex" 1685060435 897 860e72c5f68e0d6d5a4b6b9a9aa6c7fb ""
   "Q2.tex" 1685054178 2296 5c968f65344ba90e842b602b66062fc1 ""
   "c:/Users/kleme/Documents/git/active-learning/hw4/tex/main.tex" 1685055604 1178 e8bb6f852c910be4f664f21eb6d4e613 ""
   "c:/texlive/2023/texmf-dist/fonts/map/fontname/texfonts.map" 1680638995 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -155,9 +155,9 @@
   "c:/texlive/2023/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1680642284 4662201 6a1520b5c5c935088be65b26dee0a7ec ""
   "c:/texlive/2023/texmf-var/web2c/pdftex/pdflatex.fmt" 1680642437 7885591 dac93bac56aa839ad39bd83f94abb5a6 ""
   "c:/texlive/2023/texmf.cnf" 1680642261 713 e69b156964470283e0530f5060668171 ""
-  "ergodic_metric_final_extended.pdf" 1685055050 22195 909a6db10b997b98c62115d976d4d651 ""
-  "main.aux" 1685055606 4987 dc915c5acd0ceecc6d17bd22666fff5d "pdflatex"
-  "main.out" 1685055606 209 2c0dcf687e070fe173207f382e21ad00 "pdflatex"
+  "ergodic_metric_final_colored.pdf" 1685060251 22222 013b5abffdf9ae1d26c0399dbfc4b079 ""
+  "main.aux" 1685060437 5297 acd9f05828e2ab62a795a69308f8a35c "pdflatex"
+  "main.out" 1685060437 209 2c0dcf687e070fe173207f382e21ad00 "pdflatex"
   "main.tex" 1685055604 1178 e8bb6f852c910be4f664f21eb6d4e613 ""
   "path_1.pdf" 1684957204 21348 716c106d0695bdd02b10cf6659119ecf ""
   "path_2.pdf" 1684957357 21217 d1d00a9224b8801125045171224abbb6 ""

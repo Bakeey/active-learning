@@ -845,11 +845,11 @@ INPUT ./Q1.tex
 INPUT Q1.tex
 INPUT ./Q1.tex
 INPUT Q1.tex
-INPUT ./ergodic_metric_final_extended.pdf
-INPUT ./ergodic_metric_final_extended.pdf
-INPUT ergodic_metric_final_extended.pdf
-INPUT ./ergodic_metric_final_extended.pdf
-INPUT ./ergodic_metric_final_extended.pdf
+INPUT ./ergodic_metric_final_colored.pdf
+INPUT ./ergodic_metric_final_colored.pdf
+INPUT ergodic_metric_final_colored.pdf
+INPUT ./ergodic_metric_final_colored.pdf
+INPUT ./ergodic_metric_final_colored.pdf
 INPUT c:/texlive/2023/texmf-dist/fonts/tfm/public/cm/cmr8.tfm
 INPUT c:/texlive/2023/texmf-dist/fonts/tfm/public/cm/cmr6.tfm
 INPUT c:/texlive/2023/texmf-dist/fonts/tfm/public/cm/cmmi12.tfm

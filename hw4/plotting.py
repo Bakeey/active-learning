@@ -31,17 +31,20 @@ def main():
     print(values)
 
     fig, ax = plt.subplots(figsize=[5,4])
-    # for num_T,T_i in enumerate(T):
-    #     label = r'$T$ = '+T_i
-    #     plt.plot(b,values[num_T],label=label)
-    plt.plot(b,values[0],label=r'$T$ = '+T[0],color='#d7191c')
-    plt.plot(b,values[1],label=r'$T$ = '+T[1],color='#ff7f00')
-    plt.plot(b,values[2],label=r'$T$ = '+T[2],color='#ffff33')
-    plt.plot(b,values[3],label=r'$T$ = '+T[3],color='#4daf4a')
-    plt.plot(b,values[4],label=r'$T$ = '+T[4],color='#2b83ba')
-    plt.plot(b,values[5],label=r'$T$ = '+T[5],color='#984ea3')
-    plt.plot(b,values[6],label=r'$T$ = '+T[6],color='#f781bf')
-    plt.plot(b,values[7],label=r'$T$ = '+T[7],color='#a65628')
+
+    colors = ['#a50026','#d73027','#f46d43','#fdae61','#abd9e9','#74add1','#4575b4','#313695']
+
+    for num_T,T_i in enumerate(T):
+        label = r'$T$ = '+T_i
+        plt.plot(b,values[num_T],label=label, color = colors[num_T])
+    # plt.plot(b,values[0],label=r'$T$ = '+T[0],color='#d7191c')
+    # plt.plot(b,values[1],label=r'$T$ = '+T[1],color='#ff7f00')
+    # plt.plot(b,values[2],label=r'$T$ = '+T[2],color='#ffff33')
+    # plt.plot(b,values[3],label=r'$T$ = '+T[3],color='#4daf4a')
+    # plt.plot(b,values[4],label=r'$T$ = '+T[4],color='#2b83ba')
+    # plt.plot(b,values[5],label=r'$T$ = '+T[5],color='#984ea3')
+    # plt.plot(b,values[6],label=r'$T$ = '+T[6],color='#f781bf')
+    # plt.plot(b,values[7],label=r'$T$ = '+T[7],color='#a65628')
     plt.xlabel(r'$b$')
     plt.ylabel(r'$\varepsilon$')
     plt.title(r'Ergodic Metric as Function of $b$ and $T$')
@@ -52,17 +55,17 @@ def main():
 
     axins = zoomed_inset_axes(ax, 3.2, loc="upper center") # zoom = 6
 
-    # for num_T,T_i in enumerate(T):
-    #     axins.plot(b,values[num_T])
+    for num_T,T_i in enumerate(T):
+        axins.plot(b,values[num_T], color = colors[num_T])
 
-    axins.plot(b,values[0],label=r'$T$ = '+T[0],color='#d7191c')
-    axins.plot(b,values[1],label=r'$T$ = '+T[1],color='#ff7f00')
-    axins.plot(b,values[2],label=r'$T$ = '+T[2],color='#ffff33')
-    axins.plot(b,values[3],label=r'$T$ = '+T[3],color='#4daf4a')
-    axins.plot(b,values[4],label=r'$T$ = '+T[4],color='#2b83ba')
-    axins.plot(b,values[5],label=r'$T$ = '+T[5],color='#984ea3')
-    axins.plot(b,values[6],label=r'$T$ = '+T[6],color='#f781bf')
-    axins.plot(b,values[7],label=r'$T$ = '+T[7],color='#a65628')
+    # axins.plot(b,values[0],label=r'$T$ = '+T[0],color='#d7191c')
+    # axins.plot(b,values[1],label=r'$T$ = '+T[1],color='#ff7f00')
+    # axins.plot(b,values[2],label=r'$T$ = '+T[2],color='#ffff33')
+    # axins.plot(b,values[3],label=r'$T$ = '+T[3],color='#4daf4a')
+    # axins.plot(b,values[4],label=r'$T$ = '+T[4],color='#2b83ba')
+    # axins.plot(b,values[5],label=r'$T$ = '+T[5],color='#984ea3')
+    # axins.plot(b,values[6],label=r'$T$ = '+T[6],color='#f781bf')
+    # axins.plot(b,values[7],label=r'$T$ = '+T[7],color='#a65628')
 
     # sub region of the original image
     x1, x2, y1, y2 = 0, 0.125, 0, 0.04
