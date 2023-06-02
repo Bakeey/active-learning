@@ -40,7 +40,8 @@ class Params:
     y_0: float = 1
     u_0 = np.array([1, 0])
 
-    Q = np.diag([100,10]) # np.diag([1,3,4])
+    q: float = 5.
+    Q = np.diag([q,q]) # np.diag([1,3,4])
     R = np.diag([0.1,0.1]) # np.diag([0.01, 0.01])
     M = np.diag([1,0]) # no terminal cost
 
@@ -53,105 +54,6 @@ class Params:
     lb, ub = (-5.,5.)
     mu = np.array([0,0], dtype=float)
     Sigma = np.diag([2,2])
-
-
-class ErgodicControl:
-    def __init__(self, T: float = Params.T, dt: float = Params.dt, 
-                 K: int = Params.K, lb: float = Params.lb, ub: float = Params.ub) -> None:
-        self.T = T
-        self.dt = dt
-        self.N = int(np.ceil(T/dt))
-        self.K = [(i, j) for i in range(K+1) for j in range(K+1)]
-
-        # linear system dynamics
-        self.B = np.array([[1, 0],[0, 1]], dtype=float)
-        self.X_0 = np.array([0,1], dtype=float)
-        self.x = np.empty((self.N,2), dtype=float)
-        self.x[0] = self.X_0
-
-        # gaussian distribution init
-        self.mu = Params.mu
-        self.Sigma = Params.Sigma
-        self.Sigma_inv = np.linalg.inv(self.Sigma)
-        self.normalizer = ( np.linalg.det( 2*np.pi*self.Sigma ) )**-.5
-
-        self.lb = lb
-        self.ub = ub
-        return
-    
-  
-#    def dynamics(self, x: np.ndarray):
-#        """Linear System Dynamics."""
-#        return self.B@x
-#    
-#    def next(self, x: np.ndarray = None):
-#        """Euler Integration""" # TODO: RK-4 integration if needed
-#        if x is None:
-#            x = self.X_0
-#        return x + self.dt * self.dynamics(x)
-#    
-#    def trajectory(self):
-#        for idx in range(1,self.N):
-#            self.x[idx] = self.next(self.x[idx-1])
-#                                    
-#        # plt.plot(self.x[:,0],self.x[:,-1])
-#        # plt.show()
-#        return self.x
-    
-    
-    def normal_dist(self, x: np.ndarray = None):
-        """Returns density of Gaussian Distribution of a given point x in R^2"""
-        if x is None:
-            x = self.X_0
-        assert x.shape == self.mu.shape
-        prob_density: float = self.normalizer *\
-            np.exp( -0.5 * np.transpose(x - self.mu)@self.Sigma_inv@(x - self.mu) )
-        return prob_density
-        
-    def normalize_basis_function(self):
-        return 1 # normalization actually not that important for this case
-    
-    def get_basis_function(self, x: np.ndarray, k: tuple[int,int]):
-        F_k = self.normalize_basis_function() # TODO
-        for dim in range(x.shape[-1]):
-            F_k *= np.cos( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) )
-        return F_k
-        
-    def get_fourier_coeffs(self):
-        c_k = 1/self.T
-        K = self.K
-        coefficients = [None] * len(K)
-        for idx,k in enumerate(K):
-            integrator = [c_k*self.get_basis_function(_x, k) for _x in self.x]
-            coefficients[idx] = np.trapz(integrator, dx=self.dt)
-        return K, coefficients
-        
-    @cached(cache ={})
-    def get_spatial_distro_coeffs(self):
-        # TODO speed up computation significantly since this is constant for all trajectories?
-        K = self.K
-        l = len(K)
-        coefficients = [None] * l
-        for idx,k in enumerate(K):
-            coefficients[idx], _ = integrate(lambda x2,x1:
-                self.normal_dist(np.array([x1,x2])) * self.get_basis_function(np.array([x1,x2]),k),
-                self.lb, self.ub, self.lb, self.ub)
-            printProgressBar(idx + 1, l, prefix = '    Progress:', suffix = 'Complete', length = 50)
-            
-        return K, coefficients
-    
-    def get_lambda_cofficients(self):
-        # TODO speed up computation significantly since this is constant for all trajectories?
-        K = self.K
-        l = len(K)
-        coefficients = [None] * l
-        s = (2+1)/2
-        for idx,k in enumerate(K):
-            k_squared = k[0]**2 + k[-1]**2
-            coefficients[idx] = (1 + k_squared)**(-s)
-            
-        return K, coefficients
-    
 
 
 class State:
@@ -203,6 +105,123 @@ class StatePertubation(State):
         next_state: np.ndarray = self() + dt * self.dynamics(v)
         return StatePertubation(next_state, self.t + dt)
 
+
+class ErgodicControl:
+    def __init__(self, T: float = Params.T, dt: float = Params.dt, 
+                 K: int = Params.K, lb: float = Params.lb, ub: float = Params.ub) -> None:
+        self.T = T
+        self.dt = dt
+        self.N = int(np.ceil(T/dt))
+        self.K = [(i, j) for i in range(K+1) for j in range(K+1)]
+
+        # linear system dynamics
+        self.B = np.array([[1, 0],[0, 1]], dtype=float)
+        self.X_0 = np.array([0,1], dtype=float)
+        self.x = np.empty((self.N,2), dtype=float)
+        self.x[0] = self.X_0
+
+        # gaussian distribution init
+        self.mu = Params.mu
+        self.Sigma = Params.Sigma
+        self.Sigma_inv = np.linalg.inv(self.Sigma)
+        self.normalizer = ( np.linalg.det( 2*np.pi*self.Sigma ) )**-.5
+
+        self.lb = lb
+        self.ub = ub
+
+        self.K, self.Phi_K = self.get_spatial_distro_coeffs()
+        _, self.Lambda_K = self.get_lambda_cofficients()
+        return
+    
+  
+#    def dynamics(self, x: np.ndarray):
+#        """Linear System Dynamics."""
+#        return self.B@x
+#    
+#    def next(self, x: np.ndarray = None):
+#        """Euler Integration""" # TODO: RK-4 integration if needed
+#        if x is None:
+#            x = self.X_0
+#        return x + self.dt * self.dynamics(x)
+#    
+#    def trajectory(self):
+#        for idx in range(1,self.N):
+#            self.x[idx] = self.next(self.x[idx-1])
+#                                    
+#        # plt.plot(self.x[:,0],self.x[:,-1])
+#        # plt.show()
+#        return self.x
+    
+    
+    def normal_dist(self, x: np.ndarray = None):
+        """Returns density of Gaussian Distribution of a given point x in R^2"""
+        if x is None:
+            x = self.X_0
+        assert x.shape == self.mu.shape
+        prob_density: float = self.normalizer *\
+            np.exp( -0.5 * np.transpose(x - self.mu)@self.Sigma_inv@(x - self.mu) )
+        return prob_density
+        
+    def normalize_basis_function(self):
+        return 1 # normalization actually not that important for this case
+    
+    def get_basis_function(self, x: np.ndarray, k: tuple[int,int]):
+        F_k = self.normalize_basis_function() # TODO
+        for dim in range(x.shape[-1]):
+            F_k *= np.cos( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) )
+        return F_k
+    
+    def get_basis_deriv(self, x: np.ndarray, k: tuple[int,int], z: np.ndarray):
+        F_k = self.normalize_basis_function() # TODO
+        for dim in range(x.shape[-1]):
+            F_k *= - np.sin( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO: negative sign at other place??
+            F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
+        return F_k
+        
+    def get_fourier_coeffs(self, state_trajectory: np.ndarray[State]):
+        c_k = 1/self.T
+        K = self.K
+        coefficients = [None] * len(K)
+        for idx,k in enumerate(K):
+            integrator = [c_k*self.get_basis_function(_x(), k) for _x in state_trajectory]
+            coefficients[idx] = np.trapz(integrator, dx=self.dt)
+        return K, coefficients
+    
+    def get_fourier_diff(self, state_trajectory, state_pertubation):
+        c_k = 1/self.T
+        K = self.K
+        coefficients = [None] * len(K)
+        for idx,k in enumerate(K):
+            integrator = [c_k*self.get_basis_deriv(_x(), k, _z()) for _x, _z in zip(state_trajectory, state_pertubation)]
+            coefficients[idx] = np.trapz(integrator, dx=self.dt)
+        return K, coefficients
+        
+    @cached(cache ={})
+    def get_spatial_distro_coeffs(self):
+        # TODO speed up computation significantly since this is constant for all trajectories?
+        K = self.K
+        l = len(K)
+        coefficients = [None] * l
+        for idx,k in enumerate(K):
+            coefficients[idx], _ = integrate(lambda x2,x1:
+                self.normal_dist(np.array([x1,x2])) * self.get_basis_function(np.array([x1,x2]),k),
+                self.lb, self.ub, self.lb, self.ub)
+            printProgressBar(idx + 1, l, prefix = '    Progress:', suffix = 'Complete', length = 50)
+
+        return K, coefficients
+    
+    def get_lambda_cofficients(self):
+        # TODO speed up computation significantly since this is constant for all trajectories?
+        K = self.K
+        l = len(K)
+        coefficients = [None] * l
+        s = (2+1)/2
+        for idx,k in enumerate(K):
+            k_squared = k[0]**2 + k[-1]**2
+            coefficients[idx] = (1 + k_squared)**(-s)
+            
+        return K, coefficients
+    
 
 def plot_initial(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, initial_trajectory, U_0) -> None:
     time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
@@ -314,61 +333,87 @@ def plot_P_r(P: np.ndarray, r: np.ndarray) -> None:
     return
 
 
-def J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray) -> float:
+def J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, ergodic_metric: ErgodicControl) -> float:
     """Returns the cost of a given state-input trajectory"""
     assert input_trajectory.shape == (len(state_trajectory),2) ,  f"State/input has wrong size"
 
     dt = Params.dt
-    Q, R, M = Params.Q, Params.R, Params.M
+    q, Q, R, M = Params.q, Params.Q, Params.R, Params.M
     cost : float = 0
 
     # TODO change cost function !!
+
+    _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
+    ergodicity = sum([ l*(c-p)**2 for l,c,p in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K) ])
+    print("    Ergodic Metric is = ",ergodicity)
+    cost += q * ergodicity
+
     for ii in range(len(state_trajectory)-1):
-        x_curr = state_trajectory[ii]() # - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
+        # x_curr = state_trajectory[ii]() # - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
         u_curr = input_trajectory[ii]
-        cost += 0.5*dt * np.dot(x_curr,np.dot(Q, x_curr))
         cost += 0.5*dt * np.dot(u_curr,np.dot(R, u_curr))
         
-    x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
-    cost += 0.5 * np.dot(x_curr,np.dot(M, x_curr))
+    # x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
+    # cost += 0.5 * np.dot(x_curr,np.dot(M, x_curr))
     return cost
 
 
 def Directional_J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray,\
-                  state_pertubation: np.ndarray[StatePertubation], input_pertubation: np.ndarray ) -> float:
+                  state_pertubation: np.ndarray[StatePertubation], input_pertubation: np.ndarray, ergodic_metric: ErgodicControl) -> float:
     """Returns the directional derivative of the cost given an state-input trajectory and a state/input pertubation"""
     assert input_trajectory.shape == (len(state_trajectory),2) ,  f"State/input has wrong size"
     assert input_trajectory.shape == input_pertubation.shape,  f"Input/pertubation has wrong size"
     assert len(state_trajectory) == len(state_pertubation) ,  f"State/pertubation has wrong size"
 
     dt = Params.dt
-    Q, R, M = Params.Q, Params.R, Params.M
+    q, Q, R, M = Params.q, Params.Q, Params.R, Params.M
     cost : float = 0
+
+    _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
+    _, dF_K_z = ergodic_metric.get_fourier_diff(state_trajectory, state_pertubation)
+    ergodicity = 2 * sum([ l*(c-p)*df for l,c,p,df in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K, dF_K_z) ])
+    print("    Ergodic Metric is = ",ergodicity)
+    cost += q * ergodicity
 
     # TODO chnge cost derivation!
     for ii in range(len(state_trajectory)-1):
-        x_curr = state_trajectory[ii]() #  - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
+        # x_curr = state_trajectory[ii]() #  - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
         u_curr = input_trajectory[ii]  
-        z_curr = state_pertubation[ii]()
+        # z_curr = state_pertubation[ii]()
         v_curr = input_pertubation[ii]
-        cost += dt * np.dot(z_curr,np.dot(Q, x_curr))
+        # cost += dt * np.dot(z_curr,np.dot(Q, x_curr))
         cost += dt * np.dot(v_curr,np.dot(R, u_curr))
         
-    x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
-    z_curr = state_pertubation[-1]()
-    cost += np.dot(z_curr,np.dot(M, x_curr))
+    # x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
+    # z_curr = state_pertubation[-1]()
+    # cost += np.dot(z_curr,np.dot(M, x_curr))
     return cost
 
 
-def D1_l(x_curr: State) -> np.ndarray:
-    x_curr = x_curr()  # TODO - np.array([2*x_curr.t/np.pi ,0 ,np.pi/2])
-    Q = Params.Q
-    return 2*np.dot(Q, x_curr).reshape(2,1)
+def D1_l(x_curr: State, ergodic_metric: ErgodicControl, state_trajectory: np.ndarray[State]) -> np.ndarray:
+    # x_curr = x_curr()  # TODO - np.array([2*x_curr.t/np.pi ,0 ,np.pi/2])
+    # Q = Params.Q
+    q = Params.q
+    x_curr = x_curr()
+
+    _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
+    # _, dF_K_z = ergodic_metric.get_fourier_diff(state_trajectory, state_pertubation)
+
+    K = ergodic_metric.K
+    F_k = np.ones((len(K),2,)) / ergodic_metric.T
+    for idx,k in enumerate(K):
+        for dim in range(x_curr.shape[-1]):
+            F_k[idx,dim] *= - np.sin( k[dim] * (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) # TODO: negative sign at other place??
+            F_k[idx,dim] *= (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
+
+    ergodicity = q * 2 * sum([ l*(c-p)*f for l,c,p,f in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K, F_k) ])
+    
+    return ergodicity.reshape(2,1)
 
 
 def D2_l(u_curr: np.ndarray) -> np.ndarray:
     R = Params.R
-    return 2*np.dot(R, u_curr).reshape(2,1) # TODO
+    return 2*np.dot(R, u_curr).reshape(2,1) # DONE
 
 
 def D1_f(x_curr: State, u_curr: np.ndarray) -> np.ndarray:
@@ -382,7 +427,7 @@ def D2_f(x_curr: State) -> np.ndarray:
     return matrix
 
 
-def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray) -> tuple:
+def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, ergodic_metric: ErgodicControl) -> tuple:
     dt = Params.dt
     Q = Params.Q
     R = Params.R
@@ -408,7 +453,7 @@ def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.
         minus_Pdot = P[ii].dot(A[ii]) + np.transpose(A[ii]).dot(P[ii]) - \
                      P[ii].dot(B[ii]).dot(R_inv).dot(np.transpose(B[ii]).dot(P[ii])) + Q
         minus_rdot = np.transpose( A[ii] - B[ii].dot(R_inv).dot(np.transpose(B[ii]).dot(P[ii])) ).dot(r[ii]) +\
-                     D1_l(x_curr) - P[ii].dot(B[ii]).dot(R_inv.dot(D2_l(u_curr)))
+                     D1_l(x_curr, ergodic_metric, state_trajectory) - P[ii].dot(B[ii]).dot(R_inv.dot(D2_l(u_curr)))
         P[ii-1] = P[ii] + dt * minus_Pdot
         r[ii-1] = r[ii] + dt * minus_rdot
 
@@ -460,14 +505,17 @@ def main() -> int:
     # TODO Make some fancy Trajectory class
 
     X_0 = State((Params.x_0, Params.y_0), t=0)
-    U_0 = np.kron( np.ones((N,1)), Params.u_0 )
+    U_0 = np.kron( np.ones((N,1)), Params.u_0 ) # TODO change U_0?
     initial_trajectory: np.ndarray[State] = np.empty(N, dtype=State)
     initial_trajectory[0] = X_0
     for ii in range(N-1):
         initial_trajectory[ii+1] = initial_trajectory[ii].next(U_0[ii], dt)
 
-    initial_cost = J(initial_trajectory, U_0)
-    initial_deriv = Directional_J(initial_trajectory, U_0, initial_trajectory, U_0)
+    ergodic_metric = ErgodicControl()
+    print("Calculating Spatial Distro Coefficients")
+
+    initial_cost = J(initial_trajectory, U_0, ergodic_metric)
+    initial_deriv = Directional_J(initial_trajectory, U_0, initial_trajectory, U_0, ergodic_metric)
     cost = []
     dcost = []
 
@@ -480,19 +528,19 @@ def main() -> int:
     current_state_pertubation[:] = StatePertubation(z_0, t=0)
     counter: int = 0
     while True:
-        current_cost= J(current_state_trajectory, current_input_trajectory)
-        current_dcost = Directional_J(current_state_trajectory, current_input_trajectory, current_state_pertubation, current_input_pertubation)
+        current_cost= J(current_state_trajectory, current_input_trajectory, ergodic_metric)
+        current_dcost = Directional_J(current_state_trajectory, current_input_trajectory, current_state_pertubation, current_input_pertubation, ergodic_metric)
         cost.append(current_cost)
         dcost.append(current_dcost)
         print("    J = ", current_cost)
         print("    dJ = ",current_dcost)
         if counter > 0 and abs(Directional_J(current_state_trajectory, current_input_trajectory, \
-                                         current_state_pertubation, current_input_pertubation)) <= eps:
+                                         current_state_pertubation, current_input_pertubation, ergodic_metric)) <= eps:
             break
         if counter > max_iterations:
             return 0 # no solution found
         
-        current_state_pertubation, current_input_pertubation = descent_direction(current_state_trajectory, current_input_trajectory)
+        current_state_pertubation, current_input_pertubation = descent_direction(current_state_trajectory, current_input_trajectory, ergodic_metric)
 
         n: int = 0
         gamma: float = 1
@@ -503,10 +551,10 @@ def main() -> int:
             for ii in range(N-1):
                 new_state_trajectory[ii+1] = new_state_trajectory[ii].next(new_input_trajectory[ii], dt)
 
-            if n > 0 and J(new_state_trajectory, new_input_trajectory) <\
-                         J(current_state_trajectory, current_input_trajectory) +\
+            if n > 0 and J(new_state_trajectory, new_input_trajectory, ergodic_metric) <\
+                         J(current_state_trajectory, current_input_trajectory, ergodic_metric) +\
                           alpha * gamma * Directional_J(current_state_trajectory, current_input_trajectory,\
-                                                      current_state_pertubation, current_input_pertubation):
+                                                      current_state_pertubation, current_input_pertubation, ergodic_metric):
                 break
             if n > max_iterations:
                 return -1 # failed to converge
