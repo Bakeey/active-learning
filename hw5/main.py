@@ -325,20 +325,15 @@ def J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, ergodic
     q, Q, R, M = Params.q, Params.Q, Params.R, Params.M
     cost : float = 0
 
-    # TODO change cost function !!
-
     _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
     ergodicity = sum([ l*(c-p)**2 for l,c,p in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K) ])
     print("    Ergodic Metric is = ",ergodicity)
     cost += q * ergodicity
 
     for ii in range(len(state_trajectory)-1):
-        # x_curr = state_trajectory[ii]() # - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
         u_curr = input_trajectory[ii]
-        cost += 0.5*dt * np.dot(u_curr,np.dot(R, u_curr))
-        
-    # x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
-    # cost += 0.5 * np.dot(x_curr,np.dot(M, x_curr))
+        cost += dt * np.dot(u_curr,np.dot(R, u_curr))
+
     return cost
 
 
@@ -353,15 +348,8 @@ def Directional_J(state_trajectory: np.ndarray[State], input_trajectory: np.ndar
     q, Q, R, M = Params.q, Params.Q, Params.R, Params.M
     cost : float = 0
 
-    # _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
-    # _, dF_K_z = ergodic_metric.get_fourier_diff(state_trajectory, state_pertubation)
-    # ergodicity = 2 * sum([ l*(c-p)*df for l,c,p,df in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K, dF_K_z) ])
-    # print("    Ergodic Metric is = ",ergodicity)
-    # cost += q * ergodicity
-
-    # TODO chnge cost derivation!
     for ii in range(len(state_trajectory)-1):
-        x_curr = state_trajectory[ii] #  - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
+        x_curr = state_trajectory[ii]
         u_curr = input_trajectory[ii]  
 
         d1l_curr = D1_l(x_curr, ergodic_metric, state_trajectory).reshape(1,2)
@@ -370,31 +358,18 @@ def Directional_J(state_trajectory: np.ndarray[State], input_trajectory: np.ndar
         cost += (d1l_curr @ z_curr)[0,0]
         cost += dt * np.dot(v_curr,np.dot(R, u_curr))
         
-    # x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
-    # z_curr = state_pertubation[-1]()
-    # cost += np.dot(z_curr,np.dot(M, x_curr))
     return cost # TODO
 
 
 def D1_l(x_curr: State, ergodic_metric: ErgodicControl, state_trajectory: np.ndarray[State]) -> np.ndarray:
-    # x_curr = x_curr()  # TODO - np.array([2*x_curr.t/np.pi ,0 ,np.pi/2])
-    # Q = Params.Q
     q = Params.q
     x_curr = x_curr()
 
     _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
-    # _, dF_K_z = ergodic_metric.get_fourier_diff(state_trajectory, state_pertubation)
 
     K = ergodic_metric.K
-    F_k = np.ones((len(K),2,)) / ergodic_metric.T
-    # for idx,k in enumerate(K):
-    #     for dim in range(x_curr.shape[-1]):
-    #         F_k[idx,dim] *= - np.sin( k[dim] * (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) # TODO: negative sign at other place??
-    #         F_k[idx,dim] *= (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
+    F_k = np.empty((len(K),2,))
 
-    # for dim in range(x.shape[-1]):
-    #     F_k *= - np.sin( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO: negative sign at other place??
-    #     F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
     x = x_curr
     for idx,k in enumerate(K):
         F_k[idx] = ergodic_metric.get_basis_deriv(x, k)
@@ -406,7 +381,7 @@ def D1_l(x_curr: State, ergodic_metric: ErgodicControl, state_trajectory: np.nda
 
 def D2_l(u_curr: np.ndarray) -> np.ndarray:
     R = Params.R
-    return 2*np.dot(R, u_curr).reshape(2,1) # DONE
+    return np.dot(R, u_curr).reshape(2,1) # DONE
 
 
 def D1_f(x_curr: State, u_curr: np.ndarray) -> np.ndarray:
@@ -467,22 +442,6 @@ def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.
     
     input_pertubation[-1] -= (R_inv.dot(np.transpose(B[-1])).dot(P[-1]).dot(state_pertubation[-1]())).reshape(2)
     input_pertubation[-1] -= (R_inv.dot(np.transpose(B[-1])).dot(r[-1]) + R_inv.dot(D2_l(input_trajectory[-1]))).reshape(2)
-
-    # initialize z[0] = 0 and use class StatePertubation
-    # state_pertubation: np.ndarray[StatePertubation] = np.empty(N, dtype=StatePertubation)
-    # input_pertubation: np.ndarray = np.zeros_like(input_trajectory)
-    # z_0 = - np.linalg.inv(P[0]).dot(r[0]).reshape(3)
-    # state_pertubation[0] = StatePertubation(z_0, t=0)
-# 
-    # for ii in range(N-1):
-    #     input_pertubation[ii] = -R_inv.dot(np.transpose(B[ii]).dot(P[ii])).dot(state_pertubation[ii]()) -\
-    #                              R_inv.dot(np.transpose(B[ii]).dot(r[ii])).reshape(2) -\
-    #                              R_inv.dot(D2_l(input_trajectory[ii])).reshape(2)
-    #     state_pertubation[ii+1] = state_pertubation[ii].next(input_pertubation[ii], dt)
-# 
-    # input_pertubation[-1] = -R_inv.dot(np.transpose(B[-1]).dot(P[-1])).dot(state_pertubation[-1]()) -\
-    #                          R_inv.dot(np.transpose(B[-1]).dot(r[-1])).reshape(2) -\
-    #                          R_inv.dot(D2_l(input_trajectory[-1])).reshape(2)
 
     return (state_pertubation, input_pertubation)
 
