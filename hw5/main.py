@@ -38,11 +38,11 @@ class Params:
 
     x_0: float = 0
     y_0: float = 1
-    u_0 = np.array([0.05, -0.05]) # np.array([0, -0.1])
+    u_0 = np.array([0.1, -0.2]) # np.array([0, -0.1])
 
     q: float = 5.
-    Q = np.diag([0.1,1]) # np.diag([1,3,4])
-    R = np.diag([0.1,0.1]) # np.diag([0.01, 0.01])
+    Q = np.diag([0.1,0.1]) # np.diag([1,3,4])
+    R = np.diag([0.01,0.01]) # np.diag([0.01, 0.01])
     M = np.diag([0,0]) # no terminal cost
 
     alpha: float = 0.1
@@ -52,7 +52,7 @@ class Params:
 
     K: int = 5
     lb, ub = (-5.,5.)
-    mu = np.array([0,0], dtype=float)
+    mu = np.array([0.0,0.0], dtype=float)
     Sigma = np.diag([2,2])
 
 
@@ -135,7 +135,7 @@ class ErgodicControl:
         return prob_density
         
     def normalize_basis_function(self):
-        return 1 # normalization actually not that important for this case
+        return 1.0 # normalization actually not that important for this case
     
     def get_basis_function(self, x: np.ndarray, k: tuple[int,int]):
         F_k = self.normalize_basis_function() # TODO
@@ -144,7 +144,7 @@ class ErgodicControl:
         return F_k
     
     def get_basis_deriv(self, x: np.ndarray, k: tuple[int,int]):
-        dF_k = np.array([self.normalize_basis_function(), self.normalize_basis_function()]) # TODO
+        dF_k = np.array([self.normalize_basis_function(), self.normalize_basis_function()]) / Params.T
         # for dim in range(x.shape[-1]):
         #     F_k *= - np.sin( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO: negative sign at other place??
         #     F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
@@ -168,7 +168,7 @@ class ErgodicControl:
         return K, coefficients
     
     def get_fourier_diff(self, state_trajectory, state_pertubation):
-        c_k = 1/self.T
+        c_k = 1.0
         K = self.K
         coefficients = [None] * len(K)
         for idx,k in enumerate(K):
@@ -253,6 +253,7 @@ def plot_optimized(state_trajectory: np.ndarray[State], input_trajectory: np.nda
     axs[0].plot(x,y, 'r', label=r'$optimized trajectory$')
     axs[0].set_xlabel('$x$')
     axs[0].set_ylabel('$y$')
+    axs[0].set_aspect('equal')
     axs[0].legend(loc="upper left")
     axs[1].plot(time,x, 'k', label=r'$x$')
     axs[1].plot(time,y, 'r', label=r'$y$')
@@ -352,19 +353,21 @@ def Directional_J(state_trajectory: np.ndarray[State], input_trajectory: np.ndar
     q, Q, R, M = Params.q, Params.Q, Params.R, Params.M
     cost : float = 0
 
-    _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
-    _, dF_K_z = ergodic_metric.get_fourier_diff(state_trajectory, state_pertubation)
-    ergodicity = 2 * sum([ l*(c-p)*df for l,c,p,df in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K, dF_K_z) ])
-    print("    Ergodic Metric is = ",ergodicity)
-    cost += q * ergodicity
+    # _, C_K = ergodic_metric.get_fourier_coeffs(state_trajectory)
+    # _, dF_K_z = ergodic_metric.get_fourier_diff(state_trajectory, state_pertubation)
+    # ergodicity = 2 * sum([ l*(c-p)*df for l,c,p,df in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K, dF_K_z) ])
+    # print("    Ergodic Metric is = ",ergodicity)
+    # cost += q * ergodicity
 
     # TODO chnge cost derivation!
     for ii in range(len(state_trajectory)-1):
-        # x_curr = state_trajectory[ii]() #  - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
+        x_curr = state_trajectory[ii] #  - np.array([2*state_trajectory[ii].t/np.pi ,0 ,np.pi/2])
         u_curr = input_trajectory[ii]  
-        # z_curr = state_pertubation[ii]()
+
+        d1l_curr = D1_l(x_curr, ergodic_metric, state_trajectory).reshape(1,2)
+        z_curr = state_pertubation[ii]().reshape(2,1)
         v_curr = input_pertubation[ii]
-        # cost += dt * np.dot(z_curr,np.dot(Q, x_curr))
+        cost += (d1l_curr @ z_curr)[0,0]
         cost += dt * np.dot(v_curr,np.dot(R, u_curr))
         
     # x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
@@ -394,12 +397,7 @@ def D1_l(x_curr: State, ergodic_metric: ErgodicControl, state_trajectory: np.nda
     #     F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
     x = x_curr
     for idx,k in enumerate(K):
-        F_k[idx,0] *= - np.sin( k[0] * (x[0]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) 
-        F_k[idx,0] *= k[0] * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
-        F_k[idx,0] *= np.cos( k[1] * (x[1]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) )
-        F_k[idx,1] *= - np.sin( k[1] * (x[1]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) 
-        F_k[idx,1] *= k[1] * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
-        F_k[idx,1] *= np.cos( k[0] * (x[0]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) )
+        F_k[idx] = ergodic_metric.get_basis_deriv(x, k)
 
     ergodicity = q * 2 * sum([ l*(c-p)*f for l,c,p,f in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K, F_k) ])
     
@@ -554,7 +552,7 @@ def main() -> int:
                                                       current_state_pertubation, current_input_pertubation, ergodic_metric):
                 break
             if True or n > max_iterations: # TODO change
-                gamma = 1
+                gamma = 0.01
                 break
                 # return -1 # failed to converge
             
