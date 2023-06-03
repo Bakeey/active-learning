@@ -38,11 +38,11 @@ class Params:
 
     x_0: float = 0
     y_0: float = 1
-    u_0 = np.array([0.1, -0.2]) # np.array([0, -0.1])
+    u_0 = np.array([0.2, -0.2]) # np.array([0, -0.1])
 
-    q: float = 5.
+    q: float = 10.
     Q = np.diag([0.1,0.1]) # np.diag([1,3,4])
-    R = np.diag([0.01,0.01]) # np.diag([0.01, 0.01])
+    R = np.diag([0.1,0.1]) # np.diag([0.01, 0.01])
     M = np.diag([0,0]) # no terminal cost
 
     alpha: float = 0.1
@@ -135,7 +135,7 @@ class ErgodicControl:
         return prob_density
         
     def normalize_basis_function(self):
-        return 1.0 # normalization actually not that important for this case
+        return 1.0 # normalization actually not that important for this case?
     
     def get_basis_function(self, x: np.ndarray, k: tuple[int,int]):
         F_k = self.normalize_basis_function() # TODO
@@ -145,9 +145,7 @@ class ErgodicControl:
     
     def get_basis_deriv(self, x: np.ndarray, k: tuple[int,int]):
         dF_k = np.array([self.normalize_basis_function(), self.normalize_basis_function()]) / Params.T
-        # for dim in range(x.shape[-1]):
-        #     F_k *= - np.sin( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO: negative sign at other place??
-        #     F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
+
         dF_k[0] *= - np.sin( k[0] * (x[0]-self.ub) * np.pi / (self.lb - self.ub) ) 
         dF_k[0] *= k[0] * np.pi / (self.lb - self.ub)
         dF_k[0] *= np.cos( k[1] * (x[1]-self.ub) * np.pi / (self.lb - self.ub) )
@@ -178,7 +176,6 @@ class ErgodicControl:
         
     @cached(cache ={})
     def get_spatial_distro_coeffs(self):
-        # TODO speed up computation significantly since this is constant for all trajectories?
         K = self.K
         l = len(K)
         coefficients = [None] * l
@@ -191,7 +188,6 @@ class ErgodicControl:
         return K, coefficients
     
     def get_lambda_cofficients(self):
-        # TODO speed up computation significantly since this is constant for all trajectories?
         K = self.K
         l = len(K)
         coefficients = [None] * l
@@ -203,41 +199,6 @@ class ErgodicControl:
         return K, coefficients
     
 
-def plot_initial(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, initial_trajectory, U_0) -> None:
-    time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
-    x = [state.x for state in state_trajectory]
-    y = [state.y for state in state_trajectory]
-
-    x_init = [state.x for state in initial_trajectory]
-    y_init = [state.y for state in initial_trajectory]
-    
-    fig, axs = plt.subplots(1)
-    # fig.suptitle('Vertically stacked subplots')
-    axs[0].plot([0,4],[0,0], 'k--', label='Reference Trajectory')
-    axs[0].plot(x_init,y_init, 'k:', label='Initial Trajectory')
-    axs[0].plot(x,y, 'k', label='Optimized Trajectory')
-    axs[0].set_ylabel('$y$')
-    axs[0].set_xlabel('$x$')
-    axs[0].legend(loc="upper right")
-    # axs[1].plot([0,2*np.pi],[np.pi/2,np.pi/2], 'k--', label='Reference Trajectory')
-    # axs[1].plot(time, theta_init, 'k:', label='Initial Trajectory')
-    # axs[1].plot(time, theta, 'k', label='Optimized Trajectory')
-    # axs[1].set_ylabel(r'$\theta$ [rad]')
-    # axs[1].set_xlabel('time $t$ [sec]')
-    # axs[1].set_ylim([-0.2,2.7])
-    # axs[1].legend(loc="upper right")
-    # axs[2].plot(time, U_0[:,0], 'k:', label='Initial Trajectory')
-    # axs[2].plot(time, U_0[:,0], 'k:', label='Initial Trajectory')
-    # axs[2].plot([0,2*np.pi], input_trajectory[:,0], label='Optimized Trajectory')
-    # axs[2].plot([0,2*np.pi], input_trajectory[:,1], label='Optimized Trajectory')
-    # axs[2].set_ylabel('input magnitude')
-    # axs[2].set_xlabel('time $t$ [sec]')
-
-    plt.show()
-    
-    return
-
-
 def plot_optimized(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, initial_trajectory, U_0) -> None:
     time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
     x = [state.x for state in state_trajectory]
@@ -245,16 +206,14 @@ def plot_optimized(state_trajectory: np.ndarray[State], input_trajectory: np.nda
 
     x_init = [state.x for state in initial_trajectory]
     y_init = [state.y for state in initial_trajectory]
-
     
     fig, axs = plt.subplots(3)
-    # fig.suptitle('Vertically stacked subplots')
-    axs[0].plot(x_init,y_init, 'k', label=r'$initial trajectory$')
-    axs[0].plot(x,y, 'r', label=r'$optimized trajectory$')
+    axs[0].plot(x_init,y_init, 'k', label=r'initial trajectory')
+    axs[0].plot(x,y, 'r', label=r'optimized trajectory')
     axs[0].set_xlabel('$x$')
     axs[0].set_ylabel('$y$')
     axs[0].set_aspect('equal')
-    axs[0].legend(loc="upper left")
+    axs[0].legend(loc=(3,0))
     axs[1].plot(time,x, 'k', label=r'$x$')
     axs[1].plot(time,y, 'r', label=r'$y$')
     axs[1].set_xlabel('time $t$ [sec]')
@@ -267,53 +226,6 @@ def plot_optimized(state_trajectory: np.ndarray[State], input_trajectory: np.nda
     axs[2].legend(loc="upper right")
 
     plt.show()
-    
-    return
-
-
-def plot(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, initial_trajectory, U_0) -> None:
-    time = [state.t for state in state_trajectory] # np.arange(0,state_trajectory.size)*Params.dt
-    x = [state.x for state in state_trajectory]
-    y = [state.y for state in state_trajectory]
-
-    x_init = [state.x for state in initial_trajectory]
-    y_init = [state.y for state in initial_trajectory]
-
-    
-    fig, axs = plt.subplots(2)
-    # fig.suptitle('Vertically stacked subplots')
-    axs[0].plot(x_init,y_init, label = "initial trajectory")
-    axs[0].plot(x,y)
-    axs[0].set_ylabel('$y$')
-    axs[0].set_xlabel('$x$')
-    axs[1].plot(time, U_0[:,0])
-    axs[1].plot(time, U_0[:,0])
-    axs[1].plot(time, input_trajectory[:,0])
-    axs[1].plot(time, input_trajectory[:,1])
-    axs[1].set_ylabel('input magnitude')
-    axs[1].set_xlabel('time $t$ [sec]')
-
-    plt.show()
-    
-    return
-
-def plot_P_r(P: np.ndarray, r: np.ndarray) -> None:
-    P_1_1 = P[:,0,0]
-    P_2_2 = P[:,1,1]
-    P_1_2 = P[:,0,1]
-
-    t = np.arange(0,P.shape[0])*Params.dt
-    r_1 = r[:,0]
-    r_2 = r[:,1]
-    # r_3 = r[:,2] TODO is this right???
-
-    fig, axs = plt.subplots(2)
-    axs[0].plot(t,P_1_1)
-    axs[0].plot(t,P_1_2)
-    axs[0].plot(t,P_2_2)
-    axs[1].plot(t,r_1)
-    axs[1].plot(t,r_2)
-    
     return
 
 
