@@ -34,21 +34,21 @@ def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, l
 class Params:
     """Essential parameters for given problem"""
     T: float = 10
-    dt: float = 0.01
+    dt: float = 0.1
 
     x_0: float = 0
     y_0: float = 1
-    u_0 = np.array([1, 0])
+    u_0 = np.array([0.05, -0.05]) # np.array([0, -0.1])
 
     q: float = 5.
-    Q = np.diag([q,q]) # np.diag([1,3,4])
+    Q = np.diag([0.1,1]) # np.diag([1,3,4])
     R = np.diag([0.1,0.1]) # np.diag([0.01, 0.01])
-    M = np.diag([1,0]) # no terminal cost
+    M = np.diag([0,0]) # no terminal cost
 
     alpha: float = 0.1
     beta: float = 0.5
     eps: float = 1E-4
-    max_iterations: int = 10000
+    max_iterations: int = 100
 
     K: int = 5
     lb, ub = (-5.,5.)
@@ -114,12 +114,6 @@ class ErgodicControl:
         self.N = int(np.ceil(T/dt))
         self.K = [(i, j) for i in range(K+1) for j in range(K+1)]
 
-        # linear system dynamics
-        self.B = np.array([[1, 0],[0, 1]], dtype=float)
-        self.X_0 = np.array([0,1], dtype=float)
-        self.x = np.empty((self.N,2), dtype=float)
-        self.x[0] = self.X_0
-
         # gaussian distribution init
         self.mu = Params.mu
         self.Sigma = Params.Sigma
@@ -133,30 +127,8 @@ class ErgodicControl:
         _, self.Lambda_K = self.get_lambda_cofficients()
         return
     
-  
-#    def dynamics(self, x: np.ndarray):
-#        """Linear System Dynamics."""
-#        return self.B@x
-#    
-#    def next(self, x: np.ndarray = None):
-#        """Euler Integration""" # TODO: RK-4 integration if needed
-#        if x is None:
-#            x = self.X_0
-#        return x + self.dt * self.dynamics(x)
-#    
-#    def trajectory(self):
-#        for idx in range(1,self.N):
-#            self.x[idx] = self.next(self.x[idx-1])
-#                                    
-#        # plt.plot(self.x[:,0],self.x[:,-1])
-#        # plt.show()
-#        return self.x
-    
-    
     def normal_dist(self, x: np.ndarray = None):
         """Returns density of Gaussian Distribution of a given point x in R^2"""
-        if x is None:
-            x = self.X_0
         assert x.shape == self.mu.shape
         prob_density: float = self.normalizer *\
             np.exp( -0.5 * np.transpose(x - self.mu)@self.Sigma_inv@(x - self.mu) )
@@ -171,12 +143,20 @@ class ErgodicControl:
             F_k *= np.cos( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) )
         return F_k
     
-    def get_basis_deriv(self, x: np.ndarray, k: tuple[int,int], z: np.ndarray):
-        F_k = self.normalize_basis_function() # TODO
-        for dim in range(x.shape[-1]):
-            F_k *= - np.sin( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO: negative sign at other place??
-            F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
-        return F_k
+    def get_basis_deriv(self, x: np.ndarray, k: tuple[int,int]):
+        dF_k = np.array([self.normalize_basis_function(), self.normalize_basis_function()]) # TODO
+        # for dim in range(x.shape[-1]):
+        #     F_k *= - np.sin( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO: negative sign at other place??
+        #     F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
+        dF_k[0] *= - np.sin( k[0] * (x[0]-self.ub) * np.pi / (self.lb - self.ub) ) 
+        dF_k[0] *= k[0] * np.pi / (self.lb - self.ub)
+        dF_k[0] *= np.cos( k[1] * (x[1]-self.ub) * np.pi / (self.lb - self.ub) )
+
+        dF_k[1] *= - np.sin( k[1] * (x[1]-self.ub) * np.pi / (self.lb - self.ub) ) 
+        dF_k[1] *= k[1] * np.pi / (self.lb - self.ub)
+        dF_k[1] *= np.cos( k[0] * (x[0]-self.ub) * np.pi / (self.lb - self.ub) )
+
+        return dF_k
         
     def get_fourier_coeffs(self, state_trajectory: np.ndarray[State]):
         c_k = 1/self.T
@@ -192,7 +172,7 @@ class ErgodicControl:
         K = self.K
         coefficients = [None] * len(K)
         for idx,k in enumerate(K):
-            integrator = [c_k*self.get_basis_deriv(_x(), k, _z()) for _x, _z in zip(state_trajectory, state_pertubation)]
+            integrator = [c_k*self.get_basis_deriv(_x(), k)@_z() for _x, _z in zip(state_trajectory, state_pertubation)]
             coefficients[idx] = np.trapz(integrator, dx=self.dt)
         return K, coefficients
         
@@ -267,20 +247,23 @@ def plot_optimized(state_trajectory: np.ndarray[State], input_trajectory: np.nda
     y_init = [state.y for state in initial_trajectory]
 
     
-    fig, axs = plt.subplots(2)
+    fig, axs = plt.subplots(3)
     # fig.suptitle('Vertically stacked subplots')
-    axs[0].plot(time,x, 'k', label=r'$x$')
-    axs[0].plot(time,y, 'r', label=r'$y$')
-    axs[0].set_xlabel('time $t$ [sec]')
-    axs[0].set_ylabel('state magnitude')
+    axs[0].plot(x_init,y_init, 'k', label=r'$initial trajectory$')
+    axs[0].plot(x,y, 'r', label=r'$optimized trajectory$')
+    axs[0].set_xlabel('$x$')
+    axs[0].set_ylabel('$y$')
     axs[0].legend(loc="upper left")
-    axs[1].plot(time, input_trajectory[:,0], 'k', label=r'$u_0(t)$')
-    axs[1].plot(time, input_trajectory[:,1], 'r', label=r'$u_1(t)$')
-    axs[1].set_ylabel('input magnitude')
+    axs[1].plot(time,x, 'k', label=r'$x$')
+    axs[1].plot(time,y, 'r', label=r'$y$')
     axs[1].set_xlabel('time $t$ [sec]')
-    axs[1].legend(loc="upper right")
-    axs[1].set_ylim([-7,7])
-
+    axs[1].set_ylabel('state magnitude')
+    axs[1].legend(loc="upper left")
+    axs[2].plot(time, input_trajectory[:,0], 'k', label=r'$u_0(t)$')
+    axs[2].plot(time, input_trajectory[:,1], 'r', label=r'$u_1(t)$')
+    axs[2].set_ylabel('input magnitude')
+    axs[2].set_xlabel('time $t$ [sec]')
+    axs[2].legend(loc="upper right")
 
     plt.show()
     
@@ -387,7 +370,7 @@ def Directional_J(state_trajectory: np.ndarray[State], input_trajectory: np.ndar
     # x_curr = state_trajectory[-1]() # - np.array([2*state_trajectory[-1].t/np.pi ,0 ,np.pi/2])
     # z_curr = state_pertubation[-1]()
     # cost += np.dot(z_curr,np.dot(M, x_curr))
-    return cost
+    return cost # TODO
 
 
 def D1_l(x_curr: State, ergodic_metric: ErgodicControl, state_trajectory: np.ndarray[State]) -> np.ndarray:
@@ -401,10 +384,22 @@ def D1_l(x_curr: State, ergodic_metric: ErgodicControl, state_trajectory: np.nda
 
     K = ergodic_metric.K
     F_k = np.ones((len(K),2,)) / ergodic_metric.T
+    # for idx,k in enumerate(K):
+    #     for dim in range(x_curr.shape[-1]):
+    #         F_k[idx,dim] *= - np.sin( k[dim] * (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) # TODO: negative sign at other place??
+    #         F_k[idx,dim] *= (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
+
+    # for dim in range(x.shape[-1]):
+    #     F_k *= - np.sin( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) ) # TODO: negative sign at other place??
+    #     F_k *= k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) * z[dim]
+    x = x_curr
     for idx,k in enumerate(K):
-        for dim in range(x_curr.shape[-1]):
-            F_k[idx,dim] *= - np.sin( k[dim] * (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) # TODO: negative sign at other place??
-            F_k[idx,dim] *= (x_curr[dim]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
+        F_k[idx,0] *= - np.sin( k[0] * (x[0]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) 
+        F_k[idx,0] *= k[0] * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
+        F_k[idx,0] *= np.cos( k[1] * (x[1]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) )
+        F_k[idx,1] *= - np.sin( k[1] * (x[1]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) ) 
+        F_k[idx,1] *= k[1] * np.pi / (ergodic_metric.lb - ergodic_metric.ub)
+        F_k[idx,1] *= np.cos( k[0] * (x[0]-ergodic_metric.ub) * np.pi / (ergodic_metric.lb - ergodic_metric.ub) )
 
     ergodicity = q * 2 * sum([ l*(c-p)*f for l,c,p,f in zip(ergodic_metric.Lambda_K, C_K, ergodic_metric.Phi_K, F_k) ])
     
@@ -447,6 +442,7 @@ def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.
         B[ii] = D2_f(state_trajectory[ii])
     
     # iterate through P
+    print("    Calculating Descent Direction")
     for ii in range(N-1,0,-1):
         x_curr = state_trajectory[ii]
         u_curr = input_trajectory[ii]
@@ -456,6 +452,7 @@ def descent_direction(state_trajectory: np.ndarray[State], input_trajectory: np.
                      D1_l(x_curr, ergodic_metric, state_trajectory) - P[ii].dot(B[ii]).dot(R_inv.dot(D2_l(u_curr)))
         P[ii-1] = P[ii] + dt * minus_Pdot
         r[ii-1] = r[ii] + dt * minus_rdot
+        printProgressBar(N - ii + 1, N, prefix = '    Progress:', suffix = 'Complete', length = 50)
 
     z_0 = np.array([0,0]) # -np.linalg.inv(P[0]).dot(r[0])
     state_pertubation = np.zeros_like(state_trajectory, dtype=StatePertubation)
@@ -556,15 +553,17 @@ def main() -> int:
                           alpha * gamma * Directional_J(current_state_trajectory, current_input_trajectory,\
                                                       current_state_pertubation, current_input_pertubation, ergodic_metric):
                 break
-            if n > max_iterations:
-                return -1 # failed to converge
+            if True or n > max_iterations: # TODO change
+                gamma = 1
+                break
+                # return -1 # failed to converge
             
             
             # new_state_trajectory = X_0 + # HUH?
             n += 1
             gamma = beta**n
-            # print("    Current n:     ", n)
-            # print("    Current gamma: ", gamma)
+            print("    Current n:     ", n)
+            print("    Current gamma: ", gamma)
             # end Armijo search
 
         current_input_trajectory = new_input_trajectory
