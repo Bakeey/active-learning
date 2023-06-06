@@ -40,7 +40,7 @@ class Params:
     y_0: float = 1
     u_0 = np.array([0.2, -0.2]) # np.array([0, -0.1])
 
-    q: float = 10.
+    q: float = 5.
     Q = np.diag([0.1,0.1]) # np.diag([1,3,4])
     R = np.diag([0.1,0.1]) # np.diag([0.01, 0.01])
     M = np.diag([0,0]) # no terminal cost
@@ -123,6 +123,7 @@ class ErgodicControl:
         self.lb = lb
         self.ub = ub
 
+        self.h_k = self.get_normalized_basis_function()
         self.K, self.Phi_K = self.get_spatial_distro_coeffs()
         _, self.Lambda_K = self.get_lambda_cofficients()
         return
@@ -133,18 +134,29 @@ class ErgodicControl:
         prob_density: float = self.normalizer *\
             np.exp( -0.5 * np.transpose(x - self.mu)@self.Sigma_inv@(x - self.mu) )
         return prob_density
-        
-    def normalize_basis_function(self):
-        return 1.0 # normalization actually not that important for this case?
+    
+    def get_normalized_basis_function(self):
+        K = self.K
+        h_k = {}
+        lb = self.lb
+        ub = self.ub
+
+        for k in K:
+            integrand = lambda x1, x2: (np.cos(k[0]*np.pi/(ub-lb) * (x1 - ub)) * np.cos(k[1]*np.pi/(ub-lb) * (x2 - ub)))**2
+            h_k[k] = np.sqrt(integrate(integrand, lb, ub, lb, ub)[0])
+        return h_k
+
+    def normalize_basis_function(self, k):
+        return 1 / self.h_k[k]  # normalization actually not that important for this case?
     
     def get_basis_function(self, x: np.ndarray, k: tuple[int,int]):
-        F_k = self.normalize_basis_function() # TODO
+        F_k = self.normalize_basis_function(k) # TODO
         for dim in range(x.shape[-1]):
             F_k *= np.cos( k[dim] * (x[dim]-self.ub) * np.pi / (self.lb - self.ub) )
         return F_k
     
     def get_basis_deriv(self, x: np.ndarray, k: tuple[int,int]):
-        dF_k = np.array([self.normalize_basis_function(), self.normalize_basis_function()]) / Params.T
+        dF_k = np.array([self.normalize_basis_function(k), self.normalize_basis_function(k)]) / Params.T
 
         dF_k[0] *= - np.sin( k[0] * (x[0]-self.ub) * np.pi / (self.lb - self.ub) ) 
         dF_k[0] *= k[0] * np.pi / (self.lb - self.ub)
@@ -229,7 +241,7 @@ def plot_optimized(state_trajectory: np.ndarray[State], input_trajectory: np.nda
     return
 
 
-def J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, ergodic_metric: ErgodicControl) -> float:
+def J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, ergodic_metric: ErgodicControl) -> tuple[float,float]:
     """Returns the cost of a given state-input trajectory"""
     assert input_trajectory.shape == (len(state_trajectory),2) ,  f"State/input has wrong size"
 
@@ -246,7 +258,7 @@ def J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray, ergodic
         u_curr = input_trajectory[ii]
         cost += dt * np.dot(u_curr,np.dot(R, u_curr))
 
-    return cost
+    return cost, ergodicity
 
 
 def Directional_J(state_trajectory: np.ndarray[State], input_trajectory: np.ndarray,\
@@ -380,10 +392,11 @@ def main() -> int:
     ergodic_metric = ErgodicControl()
     print("Calculating Spatial Distro Coefficients")
 
-    initial_cost = J(initial_trajectory, U_0, ergodic_metric)
+    initial_cost, _ = J(initial_trajectory, U_0, ergodic_metric)
     initial_deriv = Directional_J(initial_trajectory, U_0, initial_trajectory, U_0, ergodic_metric)
     cost = []
     dcost = []
+    ergodic_metric_list = []
 
     current_state_trajectory = initial_trajectory
     current_input_trajectory = U_0
@@ -394,9 +407,10 @@ def main() -> int:
     current_state_pertubation[:] = StatePertubation(z_0, t=0)
     counter: int = 0
     while True:
-        current_cost= J(current_state_trajectory, current_input_trajectory, ergodic_metric)
+        current_cost, current_ergodic_metric = J(current_state_trajectory, current_input_trajectory, ergodic_metric)
         current_dcost = Directional_J(current_state_trajectory, current_input_trajectory, current_state_pertubation, current_input_pertubation, ergodic_metric)
         cost.append(current_cost)
+        ergodic_metric_list.append(current_ergodic_metric)
         dcost.append(current_dcost)
         print("    J = ", current_cost)
         print("    dJ = ",current_dcost)
@@ -417,8 +431,8 @@ def main() -> int:
             for ii in range(N-1):
                 new_state_trajectory[ii+1] = new_state_trajectory[ii].next(new_input_trajectory[ii], dt)
 
-            if n > 0 and J(new_state_trajectory, new_input_trajectory, ergodic_metric) <\
-                         J(current_state_trajectory, current_input_trajectory, ergodic_metric) +\
+            if n > 0 and J(new_state_trajectory, new_input_trajectory, ergodic_metric)[0] <\
+                         J(current_state_trajectory, current_input_trajectory, ergodic_metric)[0] +\
                           alpha * gamma * Directional_J(current_state_trajectory, current_input_trajectory,\
                                                       current_state_pertubation, current_input_pertubation, ergodic_metric):
                 break
@@ -443,7 +457,7 @@ def main() -> int:
         # end main while loop
     
     fig, axs = plt.subplots(2)
-    axs[0].plot(np.arange(len(cost)), cost, 'k', label=r'J$(\xi_i)$')
+    axs[0].plot(np.arange(len(ergodic_metric_list)), ergodic_metric_list, 'k', label=r'$\varepsilon$')
     axs[0].legend(loc="upper right")
     axs[0].set_xlabel('iterations')
     # axs[0].set_ylabel(r'J$(\xi_i)$')
